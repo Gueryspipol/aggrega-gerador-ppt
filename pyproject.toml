@@ -1,0 +1,22 @@
+[project]
+name = "apresentador360"
+version = "2.0.0"
+description = "Matriz (Excel) -> Apresentacao PowerPoint"
+requires-python = ">=3.10"
+dependencies = ["openpyxl>=3.1", "python-pptx>=1.0"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+apresentador360 = "apresentador360.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
