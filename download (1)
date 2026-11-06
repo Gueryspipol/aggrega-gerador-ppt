@@ -1,8 +1,0 @@
-__pycache__/
-*.pyc
-.venv/
-saida/
-samples/
-*.pptx
-*.xlsx
-!templates/.gitkeep
