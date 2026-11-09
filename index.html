@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apresentador 360 · Aggrega Benefícios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --tinta: #1c2430;
+  --suave: #667286;
+  --papel: #eef1f4;
+  --superficie: #ffffff;
+  --linha: #d8dee6;
+  --marinho: #12223f;
+  --marinho-2: #1b3160;
+  --amarelo: #ffb400;
+  --amarelo-claro: #fff4d1;
+  --economia: #0d8a73;
+  --acima: #cf4f2a;
+  --foco: #2a62e0;
+  --display: "Outfit", "Segoe UI", system-ui, sans-serif;
+  --texto: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: var(--texto); font-size: 15px; line-height: 1.5; color: var(--tinta);
+  background: var(--papel); -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+[hidden] { display: none !important; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--foco); outline-offset: 2px; }
+
+.app { display: grid; grid-template-columns: 264px 1fr; min-height: 100vh; }
+
+/* ---------- trilho lateral ---------- */
+.trilho {
+  background: var(--marinho); color: #dbe5fb; padding: 28px 24px;
+  display: flex; flex-direction: column; gap: 36px; position: sticky; top: 0; height: 100vh;
+}
+.trilho .logo { width: 150px; display: block; }
+.trilho .produto { font-family: var(--display); font-weight: 600; font-size: 20px; color: #fff; margin: 14px 0 0; }
+.fases { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.fase { display: grid; grid-template-columns: 22px 1fr; gap: 12px; padding-bottom: 26px; position: relative; color: #8fa3cf; }
+.fase:last-child { padding-bottom: 0; }
+.fase::before { content: ""; position: absolute; left: 10px; top: 22px; bottom: 2px; width: 2px; background: #2a4075; }
+.fase:last-child::before { display: none; }
+.fase .marca { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #3b538c; background: var(--marinho); position: relative; z-index: 1; }
+.fase .nome { font-weight: 500; color: inherit; line-height: 22px; }
+.fase .detalhe { display: block; font-size: 13px; color: #7b8fba; line-height: 1.35; margin-top: 2px; font-weight: 400; }
+.fase.atual { color: #fff; }
+.fase.atual .marca { border-color: var(--amarelo); box-shadow: 0 0 0 4px rgba(255, 180, 0, .22); }
+.fase.feita { color: #dbe5fb; }
+.fase.feita .marca { background: var(--amarelo); border-color: var(--amarelo); }
+.fase.feita .marca::after { content: ""; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px; border: solid var(--marinho); border-width: 0 2.5px 2.5px 0; transform: rotate(40deg); }
+.trilho .rodape { margin-top: auto; font-size: 13px; color: #7b8fba; display: grid; gap: 10px; }
+.trilho .arquivo { color: #dbe5fb; word-break: break-all; }
+.link { background: none; border: 0; padding: 0; color: #ffd36a; cursor: pointer; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.link:hover { color: #fff; }
+
+/* ---------- área principal ---------- */
+.principal { padding: 40px 40px 64px; min-width: 0; }
+h1, h2 { font-family: var(--display); margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: 34px; line-height: 1.12; font-weight: 600; }
+h2 { font-size: 21px; font-weight: 600; }
+.sub { color: var(--suave); margin: 8px 0 0; max-width: 62ch; }
+
+/* ---------- entrada da Matriz ---------- */
+.entrada { max-width: 880px; }
+.soltar {
+  margin-top: 28px; border: 2px dashed #aab5c6; border-radius: 6px; background: var(--superficie);
+  min-height: 280px; display: grid; grid-template-columns: 1.1fr .9fr; overflow: hidden;
+  transition: border-color .15s, background .15s; cursor: pointer;
+}
+.soltar:hover, .soltar.sobre { border-color: var(--marinho-2); background: #f8faff; }
+.soltar .texto { padding: 36px; display: flex; flex-direction: column; justify-content: center; gap: 14px; align-items: flex-start; }
+.soltar .texto strong { font-family: var(--display); font-size: 24px; font-weight: 600; line-height: 1.2; }
+.soltar .texto span { color: var(--suave); max-width: 38ch; }
+.botao {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; cursor: pointer;
+  background: var(--marinho); color: #fff; padding: 12px 22px; border-radius: 4px; font-weight: 600; font-size: 15px;
+  transition: background .15s;
+}
+.botao:hover { background: var(--marinho-2); }
+.botao:disabled { background: #b8c1cf; cursor: not-allowed; }
+.botao.amarelo { background: var(--amarelo); color: #231a00; }
+.botao.amarelo:hover { background: #ffc233; }
+.botao.amarelo:disabled { background: #e8dcc0; color: #9a8d6c; }
+.botao.largo { width: 100%; padding: 15px 22px; font-size: 16px; }
+.botao.contorno { background: transparent; color: var(--marinho); box-shadow: inset 0 0 0 2px var(--marinho); }
+.botao.contorno:hover { background: #e4eaf6; }
+.motivo { position: relative; background: linear-gradient(180deg, #f3f6fb, #e9eef7); border-left: 1px solid var(--linha); }
+.motivo i { position: absolute; left: 12%; height: 14px; border-radius: 2px; background: #c3cddf; }
+.motivo i:nth-child(1) { top: 22%; width: 38%; background: #8fb9ae; }
+.motivo i:nth-child(2) { top: 34%; width: 46%; background: #8fb9ae; }
+.motivo i:nth-child(3) { top: 46%; width: 55%; background: #c3cddf; }
+.motivo i:nth-child(4) { top: 58%; width: 63%; background: #e7b5a4; }
+.motivo i:nth-child(5) { top: 70%; width: 72%; background: #e7b5a4; }
+.motivo b { position: absolute; left: 56%; top: 14%; bottom: 14%; width: 3px; background: var(--amarelo); border-radius: 2px; }
+.lendo { margin-top: 28px; display: flex; align-items: center; gap: 14px; color: var(--suave); }
+.giro { width: 22px; height: 22px; border-radius: 50%; border: 3px solid #c8d1e0; border-top-color: var(--marinho); animation: gira .8s linear infinite; }
+@keyframes gira { to { transform: rotate(360deg); } }
+.alerta { margin-top: 20px; padding: 16px 18px; border-radius: 4px; background: #fdecea; border-left: 4px solid var(--acima); max-width: 880px; }
+.alerta strong { display: block; margin-bottom: 4px; }
+.alerta pre { white-space: pre-wrap; font-size: 12px; background: #fff; padding: 12px; border-radius: 4px; max-height: 260px; overflow: auto; }
+details > summary { cursor: pointer; font-weight: 500; }
+
+/* ---------- comparação ---------- */
+.cabeca { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+.resumo { display: flex; flex-wrap: wrap; margin: 26px 0 30px; border-top: 1px solid var(--linha); border-bottom: 1px solid var(--linha); background: var(--superficie); }
+.resumo > div { padding: 16px 28px 16px 20px; border-right: 1px solid var(--linha); min-width: 150px; }
+.resumo > div:last-child { border-right: 0; }
+.resumo dt { font-size: 13px; color: var(--suave); }
+.resumo dd { margin: 2px 0 0; font-family: var(--display); font-size: 25px; font-weight: 600; line-height: 1.15; }
+.resumo dd small { font-family: var(--texto); font-size: 14px; font-weight: 500; color: var(--acima); margin-left: 6px; }
+
+.grade { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start; }
+.cenarios { display: inline-flex; background: #dfe5ee; border-radius: 4px; padding: 3px; }
+.cenarios button { border: 0; background: transparent; padding: 7px 16px; border-radius: 3px; cursor: pointer; font-weight: 500; color: var(--suave); }
+.cenarios button[aria-pressed="true"] { background: var(--superficie); color: var(--tinta); box-shadow: 0 1px 2px rgba(18, 34, 63, .18); }
+.lista-topo { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+.contagem { font-size: 14px; color: var(--suave); }
+.contagem b { color: var(--tinta); }
+
+.escada { background: var(--superficie); border: 1px solid var(--linha); border-radius: 6px; position: relative; }
+.escada .legenda { display: grid; grid-template-columns: 44px 200px 1fr 112px 60px; align-items: end; padding: 10px 18px 8px 0; color: var(--suave); font-size: 13px; border-bottom: 1px solid var(--linha); }
+.escada .legenda .ref { position: relative; height: 18px; }
+.escada .legenda .ref span { position: absolute; transform: translateX(-100%); padding-right: 8px; white-space: nowrap; color: #8a6200; font-weight: 500; }
+.escada .legenda .d { text-align: right; }
+.linha {
+  display: grid; grid-template-columns: 44px 200px 1fr 112px 60px; align-items: center; width: 100%;
+  background: transparent; border: 0; border-bottom: 1px solid #edf0f4; padding: 14px 18px 14px 0; text-align: left; cursor: pointer;
+  position: relative; transition: background .12s;
+}
+.linha:last-child { border-bottom: 0; border-radius: 0 0 6px 6px; }
+.linha:hover { background: #f7f9fc; }
+.linha::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: transparent; }
+.linha[aria-checked="true"] { background: var(--amarelo-claro); }
+.linha[aria-checked="true"]::before { background: var(--amarelo); }
+.linha[aria-disabled="true"] { cursor: not-allowed; opacity: .5; }
+.caixa { width: 20px; height: 20px; border: 2px solid #9aa6ba; border-radius: 3px; margin-left: 16px; background: #fff; position: relative; }
+.linha[aria-checked="true"] .caixa { background: var(--marinho); border-color: var(--marinho); }
+.linha[aria-checked="true"] .caixa::after { content: ""; position: absolute; left: 5px; top: 1px; width: 5px; height: 10px; border: solid var(--amarelo); border-width: 0 2.5px 2.5px 0; transform: rotate(40deg); }
+.nome { display: block; font-weight: 600; line-height: 1.25; padding-right: 10px; }
+.nome small { display: block; font-weight: 400; color: var(--suave); font-size: 13px; }
+.barra { position: relative; height: 22px; }
+.barra .preenche { position: absolute; left: 0; top: 4px; height: 14px; border-radius: 2px; background: var(--economia); width: 0; transition: width .6s cubic-bezier(.2, .7, .2, 1); }
+.barra .preenche.acima { background: var(--acima); }
+.barra .base { position: absolute; top: -14px; bottom: -14px; width: 3px; background: var(--amarelo); margin-left: -1.5px; }
+.valor { text-align: right; font-weight: 600; font-size: 15px; }
+.delta { text-align: right; font-size: 14px; font-weight: 600; color: var(--economia); }
+.delta.acima { color: var(--acima); }
+.selo { display: inline-block; font-size: 12px; font-weight: 600; background: #d8f0e8; color: #0a6a58; padding: 1px 8px; border-radius: 999px; margin-left: 8px; vertical-align: 1px; }
+.nota { color: var(--suave); font-size: 13px; margin: 12px 2px 0; max-width: 78ch; }
+
+/* ---------- painel da apresentação ---------- */
+.painel { position: sticky; top: 24px; background: var(--superficie); border: 1px solid var(--linha); border-radius: 6px; padding: 22px; display: grid; gap: 16px; }
+.painel label { display: grid; gap: 5px; font-size: 14px; font-weight: 500; }
+.painel input { width: 100%; min-width: 0; border: 1px solid #b9c3d3; border-radius: 4px; padding: 10px 12px; background: #fff; font-weight: 400; }
+.painel input:focus { border-color: var(--foco); }
+.duas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.ordem { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--linha); }
+.ordem li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--linha); font-size: 14px; }
+.ordem li span:last-child { color: var(--suave); }
+.ordem .vazio { color: var(--suave); }
+.progresso { height: 4px; background: #dfe5ee; border-radius: 2px; overflow: hidden; }
+.progresso::after { content: ""; display: block; height: 100%; width: 40%; background: var(--amarelo); animation: corre 1.1s ease-in-out infinite; }
+@keyframes corre { from { margin-left: -40%; } to { margin-left: 100%; } }
+.pronto { background: #e7f6f1; border-left: 4px solid var(--economia); padding: 14px 16px; border-radius: 4px; }
+.pronto strong { display: block; font-family: var(--display); font-size: 18px; }
+.pronto a.botao { margin-top: 12px; text-decoration: none; }
+.erro { color: #a63b1d; font-size: 14px; background: #fdecea; padding: 10px 12px; border-radius: 4px; }
+
+/* ---------- resultado ---------- */
+.resultado { margin-top: 40px; }
+.tabelas { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 14px; }
+table { width: 100%; border-collapse: collapse; background: var(--superficie); border: 1px solid var(--linha); }
+caption { text-align: left; font-weight: 600; padding: 0 0 8px; font-family: var(--display); font-size: 17px; }
+th, td { padding: 10px 14px; border-bottom: 1px solid var(--linha); text-align: right; font-size: 14px; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
+.avisos { margin-top: 22px; }
+.avisos ul { margin: 10px 0 0; padding-left: 20px; color: #5a4500; }
+
+/* ---------- acesso ---------- */
+.acesso { max-width: 380px; margin: 12vh auto 0; display: grid; gap: 14px; }
+.acesso input { border: 1px solid #b9c3d3; border-radius: 4px; padding: 12px; background: #fff; }
+
+@media (max-width: 1080px) {
+  .grade { grid-template-columns: 1fr; }
+  .painel { position: static; }
+}
+@media (max-width: 880px) {
+  .app { grid-template-columns: 1fr; }
+  .trilho { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px 20px; }
+  .trilho .produto, .fase .detalhe, .trilho .rodape { display: none; }
+  .fases { display: flex; gap: 18px; }
+  .fase { padding: 0; grid-template-columns: 20px auto; }
+  .fase::before { display: none; }
+  .principal { padding: 28px 18px 48px; }
+  .soltar { grid-template-columns: 1fr; }
+  .motivo { display: none; }
+  .escada .legenda, .linha { grid-template-columns: 40px 1fr 96px 54px; }
+  .escada .legenda .ref, .barra { display: none; }
+  .tabelas { grid-template-columns: 1fr; }
+  h1 { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .barra .preenche { transition: none; }
+  .giro, .progresso::after { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="trilho">
+    <div>
+      <img class="logo" src="/static/logo_branco.png" alt="Aggrega Benefícios">
+      <p class="produto">Apresentador 360</p>
+    </div>
+    <ol class="fases" aria-label="Etapas">
+      <li class="fase atual" id="fase-1"><span class="marca"></span><span class="nome">Matriz<span class="detalhe" id="d-1">Envie o arquivo do cliente</span></span></li>
+      <li class="fase" id="fase-2"><span class="marca"></span><span class="nome">Operadoras<span class="detalhe" id="d-2">Escolha de 1 a 4</span></span></li>
+      <li class="fase" id="fase-3"><span class="marca"></span><span class="nome">Apresentação<span class="detalhe" id="d-3">Gere e baixe o PowerPoint</span></span></li>
+    </ol>
+    <div class="rodape" id="rodape" hidden>
+      <span class="arquivo" id="nome-arquivo"></span>
+      <button class="link" id="trocar" type="button">Enviar outra Matriz</button>
+    </div>
+  </aside>
+
+  <main class="principal">
+    <!-- acesso -->
+    <section id="tela-acesso" hidden>
+      <form class="acesso" id="form-acesso">
+        <h1>Entrar</h1>
+        <p class="sub">Este site é de uso interno da Aggrega.</p>
+        <input id="senha" type="password" autocomplete="current-password" placeholder="Senha" aria-label="Senha" required>
+        <div class="erro" id="erro-acesso" hidden></div>
+        <button class="botao" type="submit">Entrar</button>
+      </form>
+    </section>
+
+    <!-- entrada da matriz -->
+    <section id="tela-matriz" class="entrada" hidden>
+      <h1>Comece pela Matriz do cliente</h1>
+      <p class="sub">O robô lê as cotações, ordena as operadoras do menor para o maior custo e preenche o template da Aggrega.</p>
+      <label class="soltar" id="soltar" for="arquivo">
+        <div class="texto">
+          <strong>Arraste a Matriz aqui</strong>
+          <span>Arquivo .xlsx com as abas de cotação com e sem coparticipação.</span>
+          <span class="botao" role="presentation">Escolher arquivo</span>
+        </div>
+        <div class="motivo" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><b></b></div>
+        <input id="arquivo" type="file" accept=".xlsx" hidden>
+      </label>
+      <div class="lendo" id="lendo" hidden><span class="giro"></span><span>Lendo a Matriz…</span></div>
+      <div class="alerta" id="alerta-leitura" hidden>
+        <strong id="alerta-msg"></strong>
+        <details id="alerta-det" hidden><summary>O que o robô enxergou no arquivo</summary><pre id="alerta-diag"></pre></details>
+      </div>
+    </section>
+
+    <!-- comparação -->
+    <section id="tela-comparar" hidden>
+      <div class="cabeca">
+        <div>
+          <h1 id="titulo-cliente">Comparativo</h1>
+          <p class="sub">Marque as operadoras que entram na apresentação. Elas seguem do menor para o maior custo em todos os slides.</p>
+        </div>
+      </div>
+
+      <dl class="resumo" id="resumo"></dl>
+
+      <div class="grade">
+        <div>
+          <div class="lista-topo">
+            <div class="cenarios" role="group" aria-label="Cenário exibido" id="cenarios"></div>
+            <div class="contagem" id="contagem" aria-live="polite"></div>
+          </div>
+          <div class="escada" id="escada"></div>
+          <p class="nota" id="nota"></p>
+        </div>
+
+        <aside class="painel" id="painel" aria-label="Dados da apresentação">
+          <h2>Apresentação</h2>
+          <label>Cliente<input id="cliente" type="text" autocomplete="off"></label>
+          <div class="duas">
+            <label>Mês atual<input id="mes-atual" type="text" placeholder="JUN/2026" autocomplete="off"></label>
+            <label>Mês do reajuste<input id="mes-reaj" type="text" placeholder="SET/2026" autocomplete="off"></label>
+          </div>
+          <div>
+            <div class="contagem" style="margin-bottom:6px">Ordem nos slides</div>
+            <ol class="ordem" id="ordem"></ol>
+          </div>
+          <div class="erro" id="erro-gerar" hidden></div>
+          <div class="progresso" id="progresso" hidden></div>
+          <button class="botao amarelo largo" id="gerar" type="button" disabled>Gerar apresentação</button>
+          <div class="pronto" id="pronto" hidden>
+            <strong>Apresentação pronta</strong>
+            <span id="pronto-nome"></span>
+            <a class="botao" id="baixar" href="#">Baixar PowerPoint</a>
+          </div>
+        </aside>
+      </div>
+
+      <section class="resultado" id="resultado" hidden>
+        <h2>Resumo do que foi preenchido</h2>
+        <div class="tabelas" id="tabelas"></div>
+        <details class="avisos" id="avisos" hidden><summary id="avisos-titulo"></summary><ul id="avisos-lista"></ul></details>
+      </section>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const brl2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  const brl0 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  const pct = (x, casas = 0) => (x * 100).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }) + "%";
+  const sinal = (x) => (x > 0 ? "+" : x < 0 ? "−" : "") + pct(Math.abs(x));
+
+  const estado = { dados: null, cenario: "CC", sel: [], max: 4, gerando: false };
+
+  function fase(atual, feitas = []) {
+    [1, 2, 3].forEach((n) => {
+      const el = $("fase-" + n);
+      el.classList.toggle("atual", n === atual);
+      el.classList.toggle("feita", feitas.includes(n));
+    });
+  }
+  function tela(nome) {
+    ["acesso", "matriz", "comparar"].forEach((t) => ($("tela-" + t).hidden = t !== nome));
+  }
+  async function api(url, opcoes) {
+    const r = await fetch(url, opcoes);
+    let corpo = null;
+    try { corpo = await r.json(); } catch (_) { /* sem corpo */ }
+    if (!r.ok) {
+      const e = new Error((corpo && corpo.erro) || "Falha na comunicação com o servidor.");
+      e.status = r.status; e.corpo = corpo; throw e;
+    }
+    return corpo;
+  }
+
+  /* ---------------- acesso ---------------- */
+  $("form-acesso").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    $("erro-acesso").hidden = true;
+    try {
+      await api("/api/entrar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ senha: $("senha").value }) });
+      iniciar();
+    } catch (e) { $("erro-acesso").textContent = e.message; $("erro-acesso").hidden = false; }
+  });
+
+  /* ---------------- matriz ---------------- */
+  const soltar = $("soltar");
+  ["dragenter", "dragover"].forEach((n) => soltar.addEventListener(n, (e) => { e.preventDefault(); soltar.classList.add("sobre"); }));
+  ["dragleave", "drop"].forEach((n) => soltar.addEventListener(n, (e) => { e.preventDefault(); soltar.classList.remove("sobre"); }));
+  soltar.addEventListener("drop", (e) => { if (e.dataTransfer.files[0]) enviar(e.dataTransfer.files[0]); });
+  $("arquivo").addEventListener("change", (e) => { if (e.target.files[0]) enviar(e.target.files[0]); e.target.value = ""; });
+  $("trocar").addEventListener("click", reiniciar);
+
+  async function enviar(arq) {
+    $("alerta-leitura").hidden = true;
+    $("lendo").hidden = false;
+    const f = new FormData();
+    f.append("matriz", arq);
+    try {
+      const dados = await api("/api/ler", { method: "POST", body: f });
+      $("lendo").hidden = true;
+      abrirComparacao(dados);
+    } catch (e) {
+      $("lendo").hidden = true;
+      if (e.status === 401) return iniciar();
+      $("alerta-msg").textContent = e.message;
+      const diag = e.corpo && e.corpo.diagnostico;
+      $("alerta-det").hidden = !diag;
+      $("alerta-diag").textContent = diag || "";
+      $("alerta-leitura").hidden = false;
+    }
+  }
+
+  function reiniciar() {
+    estado.dados = null; estado.sel = []; estado.cenario = "CC";
+    $("resultado").hidden = true; $("pronto").hidden = true; $("erro-gerar").hidden = true;
+    $("rodape").hidden = true;
+    $("d-1").textContent = "Envie o arquivo do cliente"; $("d-2").textContent = "Escolha de 1 a 4";
+    $("d-3").textContent = "Gere e baixe o PowerPoint";
+    fase(1); tela("matriz");
+  }
+
+  /* ---------------- comparação ---------------- */
+  function ordenadas() {
+    const d = estado.dados, ref = d.cenarios.includes("CC") ? "CC" : d.cenarios[0];
+    return [...d.operadoras].sort((a, b) => (a[ref] || Infinity) - (b[ref] || Infinity) || a.indice - b.indice);
+  }
+
+  function abrirComparacao(d) {
+    estado.dados = d; estado.sel = []; estado.cenario = d.cenarios.includes("CC") ? "CC" : d.cenarios[0];
+    $("nome-arquivo").textContent = d.arquivo; $("rodape").hidden = false;
+    $("titulo-cliente").textContent = d.cliente || "Comparativo de operadoras";
+    $("cliente").value = d.cliente || ""; $("mes-atual").value = d.mes_atual || ""; $("mes-reaj").value = "";
+    $("d-1").textContent = d.cenarios.join(" e ") + " · " + d.operadoras.length + " operadoras";
+    $("resumo").innerHTML =
+      `<div><dt>Vidas</dt><dd>${d.vidas}</dd></div>` +
+      `<div><dt>Fatura atual</dt><dd>${brl0.format(d.fatura_atual)}</dd></div>` +
+      `<div><dt>Fatura reajustada</dt><dd>${brl0.format(d.fatura_reajustada)}<small>${sinal(d.reajuste_pct).replace("−", "+")}</small></dd></div>`;
+    $("cenarios").innerHTML = d.cenarios.map((t) =>
+      `<button type="button" data-t="${t}" aria-pressed="${t === estado.cenario}">${t === "CC" ? "Com coparticipação" : t === "SC" ? "Sem coparticipação" : t}</button>`).join("");
+    $("cenarios").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      estado.cenario = b.dataset.t;
+      $("cenarios").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+      desenhar(false);
+    }));
+    $("resultado").hidden = true; $("pronto").hidden = true; $("erro-gerar").hidden = true;
+    fase(2, [1]); tela("comparar");
+    desenhar(true);
+    atualizarPainel();
+  }
+
+  function desenhar(animar) {
+    const d = estado.dados, t = estado.cenario, fr = d.fatura_reajustada;
+    const lista = ordenadas();
+    const topo = Math.max(fr, ...lista.map((o) => o[t] || 0)) * 1.06;
+    const posBase = (fr / topo) * 100;
+    const cheio = estado.sel.length >= estado.max;
+    let html = `<div class="legenda"><span></span><span>Operadora</span>` +
+      `<div class="ref"><span style="left:${posBase}%">Fatura reajustada ${brl0.format(fr)}</span></div>` +
+      `<span class="d">Total mensal</span><span class="d">Variação</span></div>`;
+    lista.forEach((o, i) => {
+      const v = o[t] || 0, marcado = estado.sel.includes(o.indice);
+      const bloqueado = cheio && !marcado, delta = fr ? v / fr - 1 : 0, acima = delta > 0;
+      html += `<button type="button" class="linha" role="checkbox" aria-checked="${marcado}" aria-disabled="${bloqueado}" data-i="${o.indice}">` +
+        `<span class="caixa"></span>` +
+        `<span class="nome">${esc(o.nome)}${i === 0 ? '<span class="selo">menor custo</span>' : ""}<small>${i + 1}º no ranking</small></span>` +
+        `<span class="barra"><span class="preenche${acima ? " acima" : ""}" data-w="${(v / topo) * 100}" style="width:${animar ? 0 : (v / topo) * 100}%"></span><span class="base" style="left:${posBase}%"></span></span>` +
+        `<span class="valor">${v ? brl2.format(v) : "—"}</span>` +
+        `<span class="delta${acima ? " acima" : ""}">${v ? sinal(delta) : ""}</span></button>`;
+    });
+    $("escada").innerHTML = html;
+    if (animar) requestAnimationFrame(() => requestAnimationFrame(() =>
+      $("escada").querySelectorAll(".preenche").forEach((b) => (b.style.width = b.dataset.w + "%"))));
+    $("escada").querySelectorAll(".linha").forEach((b) => b.addEventListener("click", () => alternar(+b.dataset.i)));
+    $("nota").textContent = t === "SC"
+      ? "No sem coparticipação a ordem continua a do com coparticipação, mesmo que alguma operadora fique mais cara fora de ordem."
+      : "A linha amarela marca a fatura reajustada. Barras verdes ficam abaixo dela; barras laranja, acima.";
+  }
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function alternar(indice) {
+    const i = estado.sel.indexOf(indice);
+    if (i >= 0) estado.sel.splice(i, 1);
+    else if (estado.sel.length < estado.max) estado.sel.push(indice);
+    else return;
+    $("pronto").hidden = true;
+    desenhar(false); atualizarPainel();
+  }
+
+  function atualizarPainel() {
+    const d = estado.dados, n = estado.sel.length, ref = d.cenarios.includes("CC") ? "CC" : d.cenarios[0];
+    $("contagem").innerHTML = `<b>${n}</b> de ${estado.max} selecionadas` + (n >= estado.max ? ". Desmarque uma para trocar." : "");
+    const escolhidas = ordenadas().filter((o) => estado.sel.includes(o.indice));
+    $("ordem").innerHTML = escolhidas.length
+      ? escolhidas.map((o) => `<li><span>${esc(o.nome)}</span><span>${brl0.format(o[ref] || 0)}</span></li>`).join("")
+      : `<li class="vazio">Nenhuma operadora marcada.</li>`;
+    $("gerar").disabled = n === 0 || estado.gerando;
+    $("d-2").textContent = n ? n + (n === 1 ? " selecionada" : " selecionadas") : "Escolha de 1 a 4";
+    fase(2, [1]);
+  }
+
+  /* ---------------- geração ---------------- */
+  $("gerar").addEventListener("click", async () => {
+    estado.gerando = true; $("gerar").disabled = true; $("gerar").textContent = "Montando a apresentação…";
+    $("progresso").hidden = false; $("erro-gerar").hidden = true; $("pronto").hidden = true;
+    try {
+      const r = await api("/api/gerar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: estado.dados.token, operadoras: estado.sel, cliente: $("cliente").value,
+          mes_atual: $("mes-atual").value, mes_reajuste: $("mes-reaj").value,
+        }),
+      });
+      $("pronto-nome").textContent = r.arquivo;
+      $("baixar").href = r.download; $("pronto").hidden = false;
+      mostrarResultado(r);
+      $("d-3").textContent = "Pronta para baixar"; fase(3, [1, 2]);
+    } catch (e) {
+      if (e.status === 401) return iniciar();
+      $("erro-gerar").textContent = e.message; $("erro-gerar").hidden = false;
+    } finally {
+      estado.gerando = false; $("progresso").hidden = true;
+      $("gerar").textContent = "Gerar apresentação"; atualizarPainel();
+    }
+  });
+
+  function mostrarResultado(r) {
+    const nomes = { CC: "Com coparticipação", SC: "Sem coparticipação" };
+    $("tabelas").innerHTML = Object.entries(r.cenarios).map(([t, c]) =>
+      `<table><caption>${nomes[t] || t}</caption>` +
+      `<thead><tr><th>Operadora</th><th>Total mensal</th><th>Variação</th></tr></thead><tbody>` +
+      `<tr><td>Fatura reajustada (${pct(c.reajuste_pct, 2)})</td><td>${brl2.format(c.fatura_reajustada)}</td><td></td></tr>` +
+      c.operadoras.map((o) => `<tr><td>${esc(o.nome)}</td><td>${brl2.format(o.total)}</td><td>${sinal(o.reducao_pct)}</td></tr>`).join("") +
+      `</tbody></table>`).join("");
+    const av = r.avisos || [];
+    $("avisos").hidden = av.length === 0;
+    $("avisos-titulo").textContent = `Conferir antes de enviar (${av.length})`;
+    $("avisos-lista").innerHTML = av.map((a) => `<li>${esc(a)}</li>`).join("");
+    $("resultado").hidden = false;
+    $("resultado").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  /* ---------------- início ---------------- */
+  async function iniciar() {
+    try {
+      const s = await api("/api/estado");
+      estado.max = s.max_operadoras || 4;
+      if (s.precisa_senha && !s.autenticado) { tela("acesso"); return; }
+      if (estado.dados) return;
+      fase(1); tela("matriz");
+    } catch (e) {
+      tela("matriz");
+      $("alerta-msg").textContent = "Não foi possível falar com o servidor. Tente recarregar a página.";
+      $("alerta-leitura").hidden = false;
+    }
+  }
+  iniciar();
+})();
+</script>
+</body>
+</html>

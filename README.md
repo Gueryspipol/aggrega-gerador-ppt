@@ -95,3 +95,12 @@ deve ser informado em `--mes-reajuste`; se faltar, o robô mantém o texto do te
 pip install pytest
 AP360_SAMPLES=/pasta/com/os/exemplos pytest      # sem a variável, os testes de integração são pulados
 ```
+
+
+## Site (versão web, gratuita no Render)
+
+1. Suba o projeto no GitHub (inclua `server.py`, `web/`, `render.yaml`, `requirements-web.txt`, `src/` e o template em `templates/`).
+2. Em render.com, entre com o GitHub, escolha **New + > Blueprint** e selecione o repositório.
+3. Em **APP_SENHA**, defina a senha de acesso da equipe e confirme. O endereço do site aparece ao final.
+
+Local: `pip install -r requirements-web.txt && python server.py` (abre em http://localhost:8000).
