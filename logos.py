@@ -44,16 +44,39 @@ def localizar_pasta_logos(pasta: Optional[str | Path] = None) -> Optional[Path]:
     return next((p for p in candidatas if p.is_dir()), None)
 
 
+# logos da própria Aggrega (não são de operadoras): logo.png, logo_branco.png, "logo (2).png"...
+_LOGO_AGGREGA = re.compile(r"^logo([ _-]?(branco|aggrega))?( ?\(\d+\))?$", re.I)
+
+
+def _pastas_de_logos(pasta: Optional[str | Path]) -> list[Path]:
+    """Pasta `logos/` e, no repositório com arquivos soltos na raiz, a própria raiz."""
+    pastas = []
+    principal = localizar_pasta_logos(pasta)
+    if principal:
+        pastas.append(principal)
+    aqui = Path(__file__).resolve().parent
+    solto = (aqui / "pipeline.py").exists() and ((aqui / "server.py").exists() or (aqui / "app.py").exists())
+    if solto and aqui not in pastas:
+        pastas.append(aqui)
+    return pastas
+
+
 class Catalogo:
     def __init__(self, pasta: Optional[str | Path] = None):
-        self.pasta = localizar_pasta_logos(pasta)
+        self.pastas = _pastas_de_logos(pasta)
+        self.pasta = self.pastas[0] if self.pastas else None
         self.itens: list[tuple[str, Path]] = []
-        if self.pasta:
-            for arq in sorted(self.pasta.iterdir()):
-                if arq.suffix.lower() in EXTENSOES and arq.is_file():
-                    chave = _chave_do_arquivo(arq)
-                    if len(chave) >= 3:
-                        self.itens.append((chave, arq))
+        vistos: set[str] = set()
+        for pasta_logos in self.pastas:
+            for arq in sorted(pasta_logos.iterdir()):
+                if arq.suffix.lower() not in EXTENSOES or not arq.is_file():
+                    continue
+                if _LOGO_AGGREGA.match(arq.stem) or arq.stem.lower() in vistos:
+                    continue
+                chave = _chave_do_arquivo(arq)
+                if len(chave) >= 3:
+                    self.itens.append((chave, arq))
+                    vistos.add(arq.stem.lower())
 
     def __bool__(self) -> bool:
         return bool(self.itens)
