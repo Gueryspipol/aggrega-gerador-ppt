@@ -318,7 +318,7 @@ def logos_faixas(slide, grupos_logos: list[tuple[int, int, list]], altura_slide:
             continue
         a, b = caixas[ini], caixas[min(fim, len(caixas) - 1)]
         span = b.left + b.width - a.left
-        _colar_logos(slide, caminhos, a.left + span / 2, topo - 0.42 * IN, min(span * 0.85, 1.9 * IN), 0.6 * IN)
+        _colar_logos(slide, caminhos, a.left + span / 2, topo - 0.42 * IN, min(span * 0.88, 1.9 * IN), 0.55 * IN)
 
 
 # --------------------------------------------------------------------------- #
@@ -501,11 +501,14 @@ def preencher_estudo(prs, estudo: Estudo, avisos: list[str], catalogo=None) -> l
             preencher_faixas(pg, cen, grupo, avisos)
             if catalogo:
                 colunas, ini = [], 0
-                for op in grupo:
-                    colunas.append((ini, ini + len(op.planos) - 1, [a] if (a := catalogo.achar(op.nome)) else []))
+                for op in grupo:          # um logo sobre CADA coluna de plano da operadora
+                    logo = [a] if (a := catalogo.achar(op.nome)) else []
+                    for k in range(len(op.planos)):
+                        colunas.append((ini + k, ini + k, logo))
                     ini += len(op.planos)
                 logos_faixas(pg, colunas, prs.slide_height)
         remover += [s(n) for n in mapa["faixas"][len(grupos):]]
     if sem_logo:
-        avisos.append("Sem logo cadastrado para: " + ", ".join(sem_logo))
+        avisos.append("Sem logo cadastrado para: " + ", ".join(sem_logo)
+                      + " (logos reconhecidos: " + ", ".join(sorted(a.stem for a in (x[1] for x in catalogo.itens))) + ")")
     return remover
