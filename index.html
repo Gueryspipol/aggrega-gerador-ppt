@@ -338,11 +338,14 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
     ["acesso", "matriz", "comparar"].forEach((t) => ($("tela-" + t).hidden = t !== nome));
   }
   async function api(url, opcoes) {
-    const r = await fetch(url, opcoes);
+    let r;
+    try { r = await fetch(url, opcoes); }
+    catch (_) { throw new Error("Sem conexão com o servidor. Verifique a internet e tente de novo."); }
     let corpo = null;
     try { corpo = await r.json(); } catch (_) { /* sem corpo */ }
     if (!r.ok) {
-      const e = new Error((corpo && corpo.erro) || "Falha na comunicação com o servidor.");
+      const e = new Error((corpo && corpo.erro) ||
+        `Falha na comunicação com o servidor (código ${r.status}). Se o site estava parado, aguarde cerca de 1 minuto e tente de novo.`);
       e.status = r.status; e.corpo = corpo; throw e;
     }
     return corpo;

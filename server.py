@@ -101,6 +101,16 @@ def _proteger():
     return _erro("Acesso restrito. Entre com a senha.", 401)
 
 
+@app.errorhandler(Exception)
+def _erro_geral(e):
+    """Qualquer falha vira uma resposta JSON legível (o site mostra a mensagem)."""
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        return _erro(f"{e.name}: {e.description}", e.code or 500)
+    app.logger.exception("Erro não tratado")
+    return _erro(f"Erro interno do servidor ({type(e).__name__}): {e}", 500)
+
+
 @app.get("/")
 def pagina():
     arq = next((p for p in PAGINAS if p.exists()), None)
