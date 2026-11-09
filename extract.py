@@ -58,7 +58,11 @@ class _Grade:
     """Acesso 1-indexado seguro a uma planilha lida em memória."""
 
     def __init__(self, ws, max_linhas: int = 2000, max_colunas: int = 200):
-        self.rows = [tuple(r) for r in ws.iter_rows(max_row=max_linhas, max_col=max_colunas,
+        # limita ao tamanho real da aba: pedir um intervalo maior faz o openpyxl criar milhares
+        # de células vazias em memória (e estourava os 512 MB do plano gratuito)
+        ate_linha = max(1, min(max_linhas, ws.max_row or 1))
+        ate_coluna = max(1, min(max_colunas, ws.max_column or 1))
+        self.rows = [tuple(r) for r in ws.iter_rows(max_row=ate_linha, max_col=ate_coluna,
                                                     values_only=True)]
         self.n = len(self.rows)
         self.ncols = max((len(r) for r in self.rows), default=0)
