@@ -135,3 +135,47 @@ def clonar_caixa(shape, centro_x: int):
     clone._element.xpath("./p:nvSpPr/p:cNvPr")[0].set("id", str(proximo_id))
     clone.left = int(centro_x - clone.width / 2)
     return clone
+
+
+def duplicar_slide(prs, origem, depois=None):
+    """Cria uma cópia fiel de `origem` (mesmo layout, formas, tabelas e imagens) logo após `depois`
+    (ou após a própria origem) e devolve o novo slide. Use sobre um slide ainda não preenchido."""
+    novo = prs.slides.add_slide(origem.slide_layout)
+    for forma in list(novo.shapes):                      # remove placeholders vazios do layout
+        forma._element.getparent().remove(forma._element)
+
+    mapa = {}                                            # rId antigo -> rId novo
+    for rid, rel in origem.part.rels.items():
+        if rel.reltype.endswith(("/slideLayout", "/notesSlide")):
+            continue
+        if rel.is_external:
+            mapa[rid] = novo.part.relate_to(rel.target_ref, rel.reltype, is_external=True)
+        else:
+            mapa[rid] = novo.part.relate_to(rel.target_part, rel.reltype)
+
+    arvore_origem, arvore_nova = origem.shapes._spTree, novo.shapes._spTree
+    for el in arvore_origem:
+        if el.tag.endswith(("}nvGrpSpPr", "}grpSpPr")):
+            continue
+        copia = copy.deepcopy(el)
+        for no in copia.iter():
+            for atr in list(no.attrib):
+                if atr.startswith("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"):
+                    if no.attrib[atr] in mapa:
+                        no.attrib[atr] = mapa[no.attrib[atr]]
+        arvore_nova.append(copia)
+    fundo = origem._element.cSld.find("{http://schemas.openxmlformats.org/presentationml/2006/main}bg")
+    if fundo is not None:
+        novo._element.cSld.insert(0, copy.deepcopy(fundo))
+
+    # reposiciona logo após `depois`
+    lista = prs.slides._sldIdLst
+    ids = list(lista)
+    id_novo = ids[-1]
+    alvo = depois if depois is not None else origem
+    for sld_id in ids[:-1]:
+        if prs.part.related_part(sld_id.rId) is alvo.part:
+            lista.remove(id_novo)
+            sld_id.addnext(id_novo)
+            break
+    return novo
