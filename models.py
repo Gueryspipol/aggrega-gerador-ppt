@@ -62,6 +62,7 @@ class Matriz:
     demografia: Demografia
     cliente: Optional[str] = None
     mes_reajuste: Optional[str] = None
+    congenere: Optional[str] = None            # operadora(s) atual(is), se a Matriz informar
 
 
 # --------------------------------------------------------------------------- #
@@ -116,3 +117,4 @@ class Estudo:
     demografia: Demografia
     cenarios: dict[str, CenarioCalc]
     avisos: list[str] = field(default_factory=list)
+    operadora_atual: str = ""                    # texto usado para achar o(s) logo(s) da situação atual

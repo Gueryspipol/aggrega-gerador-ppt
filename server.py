@@ -34,6 +34,7 @@ if not ((RAIZ / "src" / "apresentador360" / "__init__.py").exists()
 
 from apresentador360.calc import MAX_OPERADORAS, calcular, listar_operadoras  # noqa: E402
 from apresentador360.extract import carregar_matriz, diagnosticar  # noqa: E402
+from apresentador360.logos import Catalogo  # noqa: E402
 from apresentador360.pipeline import gerar, mes_do_arquivo  # noqa: E402
 
 VERSAO = "web 1"
@@ -173,13 +174,18 @@ def ler():
 
     ref = base.cenarios.get("CC") or next(iter(base.cenarios.values()))
     mes = mes_do_arquivo(caminho)
+    catalogo = Catalogo()
     return jsonify({
         "token": token, "arquivo": nome, "cliente": matriz.cliente or "",
         "mes_atual": f"{mes[0]}/{mes[1]}" if mes else "",
         "cenarios": list(matriz.cenarios),
         "vidas": ref.total_vidas, "fatura_atual": ref.fatura_atual,
         "fatura_reajustada": ref.fatura_reajustada, "reajuste_pct": ref.reajuste_pct,
+        "operadora_atual": base.operadora_atual,
+        "logo_atual": bool(catalogo.achar_todos(base.operadora_atual)),
+        "logos_cadastrados": len(catalogo.itens),
         "operadoras": [{"indice": o["indice"], "nome": o["nome"] or "(sem nome)",
+                        "logo": catalogo.achar(o["nome"] or "") is not None,
                         **{t: o.get(t, 0.0) for t in matriz.cenarios}} for o in ops],
         "diagnostico": diagnosticar(caminho),
     })
@@ -204,7 +210,8 @@ def gerar_apresentacao():
         base = "".join(ch for ch in (cliente or "apresentacao") if ch.isalnum() or ch in " _-").strip() or "apresentacao"
         saida = saida_dir / f"{base}.pptx"
         r = gerar(origem, tpl, saida, operadoras=[int(i) for i in escolha], cliente=cliente or None,
-                  mes_atual=(dados.get("mes_atual") or None), mes_reajuste=(dados.get("mes_reajuste") or None))
+                  mes_atual=(dados.get("mes_atual") or None), mes_reajuste=(dados.get("mes_reajuste") or None),
+                  operadora_atual=(dados.get("operadora_atual") or None))
     except Exception as e:  # noqa: BLE001
         return _erro(f"Não foi possível gerar: {e}", 422)
     return jsonify({

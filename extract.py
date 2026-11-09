@@ -366,10 +366,24 @@ def _cliente_do_arquivo(caminho: Path) -> str:
     return base.replace("_", " ").strip()
 
 
+def _ler_congenere(wb, abas: dict[str, str]) -> Optional[str]:
+    """Valor ao lado do rótulo 'Congênere' (operadora atual do cliente), se existir."""
+    for aba in abas.values():
+        g = _Grade(wb[aba], max_linhas=60)
+        for r, c, v in g.celulas():
+            if norm(v) == "congenere":
+                for cc in range(c + 1, c + 4):
+                    x = g(r, cc)
+                    if isinstance(x, str) and x.strip():
+                        return x.strip()
+    return None
+
+
 def carregar_matriz(caminho: str | Path, cliente: Optional[str] = None) -> Matriz:
     caminho = Path(caminho)
     wb = openpyxl.load_workbook(caminho, data_only=True)
-    cenarios = {tipo: ler_cenario(wb[aba], tipo) for tipo, aba in achar_abas(wb).items()}
+    abas = achar_abas(wb)
+    cenarios = {tipo: ler_cenario(wb[aba], tipo) for tipo, aba in abas.items()}
     if not cenarios:
         raise ValueError("Nenhuma aba de cenário encontrada.\n\n" + diagnosticar(caminho))
     if "CC" in cenarios and "SC" in cenarios:
@@ -379,4 +393,5 @@ def carregar_matriz(caminho: str | Path, cliente: Optional[str] = None) -> Matri
     except ValueError as e:
         raise ValueError(f"{e}\n\n{diagnosticar(caminho)}") from None
     return Matriz(caminho=str(caminho), cenarios=cenarios, demografia=demografia,
-                  cliente=cliente or _cliente_do_arquivo(caminho))
+                  cliente=cliente or _cliente_do_arquivo(caminho),
+                  congenere=_ler_congenere(wb, abas))

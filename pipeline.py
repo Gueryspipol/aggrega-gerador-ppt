@@ -10,6 +10,7 @@ from pptx import Presentation
 
 from .calc import calcular
 from .extract import carregar_matriz
+from .logos import Catalogo
 from .models import Estudo
 from .pptx_writer import remover_slide
 from .slides import preencher_estudo
@@ -54,15 +55,17 @@ def gerar(matriz: str | Path, template: str | Path, saida: str | Path, *,
           operadoras: Optional[Sequence[int | str]] = None,
           cliente: Optional[str] = None,
           mes_atual: Optional[str] = None,
-          mes_reajuste: Optional[str] = None) -> Resultado:
+          mes_reajuste: Optional[str] = None,
+          operadora_atual: Optional[str] = None,
+          logos: Optional[str | Path] = None) -> Resultado:
     m = carregar_matriz(matriz, cliente=cliente)
     prs = Presentation(str(template))               # o template original nunca é alterado
     estudo = calcular(m, operadoras, cliente=cliente,
                       mes_atual=parse_mes(mes_atual) or mes_do_arquivo(matriz),
-                      mes_reajuste=parse_mes(mes_reajuste))
+                      mes_reajuste=parse_mes(mes_reajuste), operadora_atual=operadora_atual)
     avisos = list(estudo.avisos)
 
-    remover = preencher_estudo(prs, estudo, avisos)
+    remover = preencher_estudo(prs, estudo, avisos, Catalogo(logos))
     for slide in remover:
         remover_slide(prs, slide)
 

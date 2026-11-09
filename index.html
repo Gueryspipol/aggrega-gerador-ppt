@@ -289,6 +289,8 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
         <aside class="painel" id="painel" aria-label="Dados da apresentação">
           <h2>Apresentação</h2>
           <label>Cliente<input id="cliente" type="text" autocomplete="off"></label>
+          <label>Operadora atual<input id="op-atual" type="text" placeholder="ex.: Bradesco e Amil" autocomplete="off"></label>
+          <p class="nota" id="nota-logo-atual" style="margin:-8px 0 0" hidden>Não achei o logo da operadora atual. Digite o nome dela para o robô escolher o logo.</p>
           <div class="duas">
             <label>Mês atual<input id="mes-atual" type="text" placeholder="JUN/2026" autocomplete="off"></label>
             <label>Mês do reajuste<input id="mes-reaj" type="text" placeholder="SET/2026" autocomplete="off"></label>
@@ -408,6 +410,8 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
     estado.dados = d; estado.sel = []; estado.cenario = d.cenarios.includes("CC") ? "CC" : d.cenarios[0];
     $("nome-arquivo").textContent = d.arquivo; $("rodape").hidden = false;
     $("titulo-cliente").textContent = d.cliente || "Comparativo de operadoras";
+    $("op-atual").value = d.logo_atual ? d.operadora_atual : "";
+    $("nota-logo-atual").hidden = !!d.logo_atual;
     $("cliente").value = d.cliente || ""; $("mes-atual").value = d.mes_atual || ""; $("mes-reaj").value = "";
     $("d-1").textContent = d.cenarios.join(" e ") + " · " + d.operadoras.length + " operadoras";
     $("resumo").innerHTML =
@@ -441,7 +445,7 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
       const bloqueado = cheio && !marcado, delta = fr ? v / fr - 1 : 0, acima = delta > 0;
       html += `<button type="button" class="linha" role="checkbox" aria-checked="${marcado}" aria-disabled="${bloqueado}" data-i="${o.indice}">` +
         `<span class="caixa"></span>` +
-        `<span class="nome">${esc(o.nome)}${i === 0 ? '<span class="selo">menor custo</span>' : ""}<small>${i + 1}º no ranking</small></span>` +
+        `<span class="nome">${esc(o.nome)}${i === 0 ? '<span class="selo">menor custo</span>' : ""}<small>${i + 1}º no ranking${o.logo ? "" : " · sem logo cadastrado"}</small></span>` +
         `<span class="barra"><span class="preenche${acima ? " acima" : ""}" data-w="${(v / topo) * 100}" style="width:${animar ? 0 : (v / topo) * 100}%"></span><span class="base" style="left:${posBase}%"></span></span>` +
         `<span class="valor">${v ? brl2.format(v) : "—"}</span>` +
         `<span class="delta${acima ? " acima" : ""}">${v ? sinal(delta) : ""}</span></button>`;
@@ -487,6 +491,7 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
         body: JSON.stringify({
           token: estado.dados.token, operadoras: estado.sel, cliente: $("cliente").value,
           mes_atual: $("mes-atual").value, mes_reajuste: $("mes-reaj").value,
+          operadora_atual: $("op-atual").value,
         }),
       });
       $("pronto-nome").textContent = r.arquivo;

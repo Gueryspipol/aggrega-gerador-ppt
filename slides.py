@@ -249,6 +249,79 @@ def preencher_financeira(slide, cen: CenarioCalc, avisos: list[str], pagina: int
 
 
 # --------------------------------------------------------------------------- #
+# Logos das operadoras
+# --------------------------------------------------------------------------- #
+IN = 914400
+
+
+def _colar_logos(slide, caminhos, cx: float, cy: float, larg: float, alt: float) -> None:
+    """Cola um ou mais logos lado a lado, sem distorcer, centralizados em (cx, cy) dentro de larg x alt."""
+    from PIL import Image
+    caminhos = [c for c in caminhos if c]
+    if not caminhos:
+        return
+    faixa = larg / len(caminhos)
+    for i, caminho in enumerate(caminhos):
+        with Image.open(caminho) as im:
+            w, h = im.size
+        esc = min(faixa * 0.92 / w, alt / h)
+        pw, ph = int(w * esc), int(h * esc)
+        x = int(cx - larg / 2 + faixa * (i + 0.5) - pw / 2)
+        slide.shapes.add_picture(str(caminho), x, int(cy - ph / 2), pw, ph)
+
+
+def logos_resumo(slide, logos_cols: list, altura_slide: int) -> None:
+    """Slides 14/18: o logo vai no balão branco que fica acima de cada coluna (cartão)."""
+    auto = [x for x in slide.shapes if x.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE and not x.text_frame.text.strip()]
+    cartoes = sorted((x for x in auto if x.height >= 0.3 * altura_slide), key=lambda x: x.left)
+    baloes = [x for x in auto if x.height < 0.3 * altura_slide]
+    for caminhos, cartao in zip(logos_cols, cartoes):
+        candidatos = [b for b in baloes
+                      if cartao.left <= b.left + b.width / 2 <= cartao.left + cartao.width
+                      and b.top < cartao.top + 0.2 * IN]
+        if not candidatos:
+            continue
+        balao = min(candidatos, key=lambda b: abs(b.top - cartao.top))
+        _colar_logos(slide, caminhos, balao.left + balao.width / 2, balao.top + balao.height * 0.40,
+                     balao.width * 0.82, balao.height * 0.50)
+
+
+def logos_tabela_financeira(slide, logos_cols: list) -> None:
+    """Slides 15/19: o logo vai entre as etiquetas (ATUAL, REAJUSTE...) e o topo de cada coluna da tabela."""
+    forma = next(x for x in slide.shapes if x.has_table)
+    abaixo_de = [x.top + x.height for x in slide.shapes
+                 if x.shape_type not in (MSO_SHAPE_TYPE.PICTURE, MSO_SHAPE_TYPE.LINE, MSO_SHAPE_TYPE.TABLE)
+                 and x.top + x.height < forma.top]
+    topo = max(abaixo_de, default=forma.top - 1.0 * IN) + 0.06 * IN
+    base = forma.top - 0.04 * IN
+    alt = max(0.3 * IN, min(0.65 * IN, (base - topo) * 0.9))
+    esquerda = forma.left
+    for c, col in enumerate(forma.table.columns):
+        if 1 <= c <= len(logos_cols) and logos_cols[c - 1]:
+            _colar_logos(slide, logos_cols[c - 1], esquerda + col.width / 2, (topo + base) / 2,
+                         col.width * 0.72, alt)
+        esquerda += col.width
+
+
+def logos_faixas(slide, grupos_logos: list[tuple[int, int, list]], altura_slide: int) -> None:
+    """Slides 16/17/20/21: o logo da operadora fica logo acima das colunas dos planos dela
+    (grupos_logos = [(coluna_inicial, coluna_final, [logos])], colunas contadas a partir de 0)."""
+    largura = slide.part.package.presentation_part.presentation.slide_width
+    caixas = [x for x in slide.shapes if x.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE
+              and 0.5 * altura_slide <= x.height <= 0.8 * altura_slide and x.width < 0.12 * largura]
+    caixas.sort(key=lambda x: x.left)
+    if not caixas:
+        return
+    topo = min(x.top for x in caixas)
+    for ini, fim, caminhos in grupos_logos:
+        if not caminhos or ini >= len(caixas):
+            continue
+        a, b = caixas[ini], caixas[min(fim, len(caixas) - 1)]
+        span = b.left + b.width - a.left
+        _colar_logos(slide, caminhos, a.left + span / 2, topo - 0.42 * IN, min(span * 0.85, 1.9 * IN), 0.6 * IN)
+
+
+# --------------------------------------------------------------------------- #
 # Slides 16-17 / 20-21 – custo por faixa etária
 # --------------------------------------------------------------------------- #
 def preencher_faixas(slide, cen: CenarioCalc, grupo: list[OperadoraCalc],
@@ -348,7 +421,7 @@ def validar_template(prs, tipos: list[str]) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-def preencher_estudo(prs, estudo: Estudo, avisos: list[str]) -> list:
+def preencher_estudo(prs, estudo: Estudo, avisos: list[str], catalogo=None) -> list:
     """Preenche todos os slides e devolve a lista de slides a remover."""
     slides = list(prs.slides)
     problemas = validar_template(prs, list(estudo.cenarios))
@@ -357,6 +430,27 @@ def preencher_estudo(prs, estudo: Estudo, avisos: list[str]) -> list:
                          + "\n\n" + resumo_template(prs))
     s = lambda n: slides[n - 1]   # noqa: E731
     remover = []
+
+    sem_logo: list[str] = []
+    atuais_logos = catalogo.achar_todos(estudo.operadora_atual) if catalogo else []
+    if catalogo is not None:
+        if not catalogo:
+            avisos.append("Pasta de logos não encontrada ou vazia: os slides ficam sem logos das operadoras")
+        elif not atuais_logos:
+            avisos.append("Logo da operadora atual não identificado"
+                          + (f" ({estudo.operadora_atual})" if estudo.operadora_atual else "")
+                          + ": informe o nome da operadora atual ou cadastre o logo")
+
+    def _logos_cols(cen):
+        if not catalogo:
+            return []
+        cols = [atuais_logos, atuais_logos]
+        for op in cen.operadoras:
+            arq = catalogo.achar(op.nome)
+            if arq is None and op.nome not in sem_logo:
+                sem_logo.append(op.nome)
+            cols.append([arq] if arq else [])
+        return cols
 
     preencher_capa(s(SLIDE_CAPA), estudo.cliente)
     primeiro = next(iter(estudo.cenarios.values()))
@@ -368,7 +462,10 @@ def preencher_estudo(prs, estudo: Estudo, avisos: list[str]) -> list:
         if cen is None:
             remover += [s(n) for n in todos]
             continue
+        logos_cols = _logos_cols(cen)
         preencher_resumo(s(mapa["resumo"]), cen, estudo, prs.slide_height, avisos)
+        if logos_cols:
+            logos_resumo(s(mapa["resumo"]), logos_cols, prs.slide_height)
         original = s(mapa["financeira"])
         n_pag = paginas_financeira(original, cen)
         paginas = [original]
@@ -379,6 +476,8 @@ def preencher_estudo(prs, estudo: Estudo, avisos: list[str]) -> list:
                           f"o slide foi duplicado e a lista continua em {n_pag} slides")
         for i, pg in enumerate(paginas):
             preencher_financeira(pg, cen, avisos, pagina=i)
+            if logos_cols:
+                logos_tabela_financeira(pg, logos_cols)
         tabela_faixas = next(x for x in s(mapa["faixas"][0]).shapes if x.has_table).table
         capacidade = len(tabela_faixas.columns) - 1
         grupos: list[list[OperadoraCalc]] = [[]]
@@ -400,5 +499,13 @@ def preencher_estudo(prs, estudo: Estudo, avisos: list[str]) -> list:
                           f"foram criados mais {len(grupos) - len(mapa['faixas'])} slide(s)")
         for pg, grupo in zip(paginas, grupos):
             preencher_faixas(pg, cen, grupo, avisos)
+            if catalogo:
+                colunas, ini = [], 0
+                for op in grupo:
+                    colunas.append((ini, ini + len(op.planos) - 1, [a] if (a := catalogo.achar(op.nome)) else []))
+                    ini += len(op.planos)
+                logos_faixas(pg, colunas, prs.slide_height)
         remover += [s(n) for n in mapa["faixas"][len(grupos):]]
+    if sem_logo:
+        avisos.append("Sem logo cadastrado para: " + ", ".join(sem_logo))
     return remover

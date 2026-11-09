@@ -150,7 +150,8 @@ def _calc_cenario(cen: CenarioMatriz, indices: list[int], nome_op, avisos: list[
 def calcular(matriz: Matriz, selecao: Optional[Selecao] = None, *,
              cliente: Optional[str] = None,
              mes_atual: Optional[tuple[str, int]] = None,
-             mes_reajuste: Optional[tuple[str, int]] = None) -> Estudo:
+             mes_reajuste: Optional[tuple[str, int]] = None,
+             operadora_atual: Optional[str] = None) -> Estudo:
     avisos: list[str] = []
     indices = resolver_selecao(matriz, selecao)
 
@@ -170,4 +171,6 @@ def calcular(matriz: Matriz, selecao: Optional[Selecao] = None, *,
         avisos.append("Matriz sem aba SC: apenas o cenário CC será preenchido")
     return Estudo(cliente=cliente or matriz.cliente or "", mes_atual=mes_atual,
                   mes_reajuste=mes_reajuste, demografia=matriz.demografia,
-                  cenarios=cenarios, avisos=avisos)
+                  cenarios=cenarios, avisos=avisos,
+                  operadora_atual=(operadora_atual or "").strip()
+                  or " ".join(x for x in (ref.blocos[0].nome, matriz.congenere) if x))
