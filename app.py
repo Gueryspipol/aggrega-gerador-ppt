@@ -60,14 +60,15 @@ st.markdown("""
 .passo {display: flex; align-items: center; gap: 12px; margin: 22px 0 8px 0;}
 .passo .n {background: #1F4FD1; color: #fff; width: 32px; height: 32px; border-radius: 50%;
            display: flex; align-items: center; justify-content: center; font-weight: 700;}
-.passo .t {font-size: 1.25rem; font-weight: 700; color: #14264F;}
-.passo .d {color: #6B7A99; font-size: 0.92rem; margin-left: 4px;}
+.passo .t {font-size: 1.25rem; font-weight: 700; color: inherit;}
+.passo .d {color: #8A94AD; font-size: 0.92rem; margin-left: 4px;}
 .chip {display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.78rem;
        font-weight: 600; margin-left: 6px;}
 .chip.verde {background: #DDF5E6; color: #17794A;}
 .chip.azul {background: #E1EAFF; color: #1F4FD1;}
 .chip.cinza {background: #ECEFF6; color: #5B6988;}
-div[data-testid="stVerticalBlockBorderWrapper"] {border-radius: 14px; background: #fff;}
+.block-container h1, .block-container h2 {color: inherit;}
+div[data-testid="stVerticalBlockBorderWrapper"] {border-radius: 14px;}
 div.stButton > button[kind="primary"], div.stDownloadButton > button {
     border-radius: 10px; padding: 0.65rem 1.6rem; font-weight: 700;}
 </style>
