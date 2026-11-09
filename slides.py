@@ -15,7 +15,7 @@ from . import formatos as f
 from .extract import FAIXA_INICIOS, FAIXA_ROTULOS
 from .models import CenarioCalc, Demografia, Estudo, OperadoraCalc
 from .pptx_writer import (clonar_caixa, definir_celula, definir_linhas, definir_paragrafo,
-                          limpar, substituir_dados_grafico)
+                          duplicar_slide, limpar, substituir_dados_grafico)
 
 # número do slide (1-based) de cada parte do template
 SLIDE_CAPA = 1
@@ -195,28 +195,43 @@ def _modelo_celula(tabela, k: int, c: int):
     return None
 
 
-def preencher_financeira(slide, cen: CenarioCalc, avisos: list[str]) -> None:
-    """Colunas: Atual | Reajuste | operadoras. Cada coluna lista os seus próprios planos, de cima
-    para baixo (blocos de 4 linhas: produto, vidas, custo médio, total)."""
-    tabela = next(s for s in slide.shapes if s.has_table).table
-    n_cols = len(tabela.columns)
-    n_ops_cols = n_cols - 3
-    n_grupos = (len(tabela.rows) + 1) // 5
-    if len(cen.operadoras) > n_ops_cols:
-        avisos.append(f"Slide de análise financeira {cen.tipo}: tabela tem {n_ops_cols} colunas de operadora; "
-                      f"{len(cen.operadoras) - n_ops_cols} não couberam")
-
+def _colunas_financeira(cen: CenarioCalc, n_ops_cols: int) -> dict[int, list[tuple]]:
     colunas: dict[int, list[tuple]] = {
         1: [(a.nome, a.vidas, a.custo_medio, a.total) for a in cen.planos_atuais],
         2: [(a.nome, a.vidas, a.custo_medio_reaj, a.total_reaj) for a in cen.planos_atuais],
     }
     for j, op in enumerate(cen.operadoras[:n_ops_cols]):
         colunas[3 + j] = [(p.nome, p.vidas, p.custo_medio, p.total) for p in op.planos]
-    for c, lista in colunas.items():
-        if len(lista) > n_grupos:
-            avisos.append(f"Slide de análise financeira {cen.tipo}: a coluna {c + 1} tem {len(lista)} planos "
-                          f"e a tabela comporta {n_grupos}; {len(lista) - n_grupos} não couberam")
-    usados = min(n_grupos, max((len(v) for v in colunas.values()), default=0))
+    return colunas
+
+
+def capacidade_financeira(slide) -> tuple[int, int]:
+    """(planos por slide, colunas de operadora) da tabela de análise financeira."""
+    tabela = next(s for s in slide.shapes if s.has_table).table
+    return (len(tabela.rows) + 1) // 5, len(tabela.columns) - 3
+
+
+def paginas_financeira(slide, cen: CenarioCalc) -> int:
+    """Quantos slides de análise financeira são necessários para listar todos os planos."""
+    n_grupos, n_ops_cols = capacidade_financeira(slide)
+    maior = max((len(v) for v in _colunas_financeira(cen, n_ops_cols).values()), default=0)
+    return max(1, -(-maior // n_grupos))
+
+
+def preencher_financeira(slide, cen: CenarioCalc, avisos: list[str], pagina: int = 0) -> None:
+    """Colunas: Atual | Reajuste | operadoras. Cada coluna lista os seus próprios planos, de cima
+    para baixo (blocos de 4 linhas: produto, vidas, custo médio, total). Quando há mais planos do
+    que a tabela comporta, os seguintes continuam no slide duplicado (`pagina` 1, 2, ...)."""
+    tabela = next(s for s in slide.shapes if s.has_table).table
+    n_cols = len(tabela.columns)
+    n_grupos, n_ops_cols = capacidade_financeira(slide)
+    if pagina == 0 and len(cen.operadoras) > n_ops_cols:
+        avisos.append(f"Slide de análise financeira {cen.tipo}: tabela tem {n_ops_cols} colunas de operadora; "
+                      f"{len(cen.operadoras) - n_ops_cols} não couberam")
+
+    inicio = pagina * n_grupos
+    colunas = {c: lista[inicio:inicio + n_grupos] for c, lista in _colunas_financeira(cen, n_ops_cols).items()}
+    usados = max((len(v) for v in colunas.values()), default=0)
 
     for g in range(n_grupos):
         for k in range(4):
@@ -354,7 +369,16 @@ def preencher_estudo(prs, estudo: Estudo, avisos: list[str]) -> list:
             remover += [s(n) for n in todos]
             continue
         preencher_resumo(s(mapa["resumo"]), cen, estudo, prs.slide_height, avisos)
-        preencher_financeira(s(mapa["financeira"]), cen, avisos)
+        original = s(mapa["financeira"])
+        n_pag = paginas_financeira(original, cen)
+        paginas = [original]
+        for _ in range(n_pag - 1):             # mais planos que linhas: duplica o slide e continua
+            paginas.append(duplicar_slide(prs, original, depois=paginas[-1]))
+        if n_pag > 1:
+            avisos.append(f"Análise financeira {tipo}: planos demais para um slide; "
+                          f"o slide foi duplicado e a lista continua em {n_pag} slides")
+        for i, pg in enumerate(paginas):
+            preencher_financeira(pg, cen, avisos, pagina=i)
         tabela_faixas = next(x for x in s(mapa["faixas"][0]).shapes if x.has_table).table
         capacidade = len(tabela_faixas.columns) - 1
         grupos: list[list[OperadoraCalc]] = [[]]
@@ -366,12 +390,15 @@ def preencher_estudo(prs, estudo: Estudo, avisos: list[str]) -> list:
             grupos[-1].append(op)
             usado += len(op.planos)
         grupos = [g for g in grupos if g]
+        # slides de faixas necessários: usa os do template e duplica o último quando faltar
+        modelo = s(mapa["faixas"][-1])
+        paginas = [s(n) for n in mapa["faixas"][:len(grupos)]]
+        while len(paginas) < len(grupos):
+            paginas.append(duplicar_slide(prs, modelo, depois=paginas[-1]))
         if len(grupos) > len(mapa["faixas"]):
-            avisos.append(f"Slides de faixas {tipo}: o template tem {len(mapa['faixas'])} slides; "
-                          f"{len(grupos) - len(mapa['faixas'])} grupo(s) de operadoras não couberam")
-        for g, num in enumerate(mapa["faixas"]):
-            if g < len(grupos):
-                preencher_faixas(s(num), cen, grupos[g], avisos)
-            else:
-                remover.append(s(num))
+            avisos.append(f"Custo por faixa etária {tipo}: planos demais para {len(mapa['faixas'])} slides; "
+                          f"foram criados mais {len(grupos) - len(mapa['faixas'])} slide(s)")
+        for pg, grupo in zip(paginas, grupos):
+            preencher_faixas(pg, cen, grupo, avisos)
+        remover += [s(n) for n in mapa["faixas"][len(grupos):]]
     return remover

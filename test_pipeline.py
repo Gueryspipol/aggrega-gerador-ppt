@@ -250,3 +250,68 @@ def test_template_fora_do_padrao_da_erro_claro():
     assert any("slide 15" in p and "tabela" in p for p in problemas)
     assert "slide 15: 0 tabela(s)" in resumo_template(prs)
     assert validar_template(Presentation(), ["CC"])[0].startswith("o template tem 0 slides")
+
+
+@precisa_amostras
+def test_analise_financeira_continua_em_slide_duplicado(tmp_path):
+    """Com 6 planos (a tabela comporta 4), o slide é duplicado e os planos 5 e 6 seguem no novo slide."""
+    import copy as _copy
+    from apresentador360.pptx_writer import remover_slide
+    from apresentador360.slides import preencher_estudo
+
+    m = carregar_matriz(MATRIZ)
+    est = calcular(m, [1, 3])
+    for cen in est.cenarios.values():
+        base_a, base_o = cen.planos_atuais[:], [o.planos[:] for o in cen.operadoras]
+        while len(cen.planos_atuais) < 6:
+            i = len(cen.planos_atuais)
+            novo = _copy.deepcopy(base_a[i % len(base_a)]); novo.nome = f"Atual extra {i + 1}"
+            cen.planos_atuais.append(novo)
+        for o, orig in zip(cen.operadoras, base_o):
+            while len(o.planos) < 6:
+                i = len(o.planos)
+                p = _copy.deepcopy(orig[i % len(orig)]); p.nome = f"Plano extra {i + 1}"
+                o.planos.append(p)
+
+    prs = Presentation(str(PPTX))
+    antes = len(prs.slides)
+    avisos = []
+    for s in preencher_estudo(prs, est, avisos):
+        remover_slide(prs, s)
+    assert len(prs.slides) == antes + 2                       # +1 em CC e +1 em SC
+    tabelas = [next(sh for sh in s.shapes if sh.has_table).table for s in prs.slides
+               if any(sh.has_table and len(sh.table.columns) == 7 and len(sh.table.rows) == 19 for sh in s.shapes)]
+    assert len(tabelas) == 4                                  # 2 slides CC + 2 slides SC
+    assert tabelas[0].cell(0, 1).text.strip() != ""
+    assert tabelas[1].cell(0, 1).text.strip() == "Atual extra 5"
+    assert tabelas[1].cell(5, 1).text.strip() == "Atual extra 6"
+    assert tabelas[1].cell(10, 1).text.strip() == ""          # 3º grupo vazio na continuação
+    assert any("duplicado" in a for a in avisos)
+    prs.save(str(tmp_path / "x.pptx"))
+    Presentation(str(tmp_path / "x.pptx"))                    # reabre sem erro
+
+
+@precisa_amostras
+def test_custo_por_faixa_cresce_com_mais_planos(tmp_path):
+    """Com 4 operadoras de 6 planos (24 colunas), os slides de faixa passam de 2 para 3 por cenário."""
+    import copy as _copy
+    from apresentador360.pptx_writer import remover_slide
+    from apresentador360.slides import preencher_estudo
+
+    m = carregar_matriz(MATRIZ)
+    est = calcular(m, [1, 3, 8, 6])
+    for cen in est.cenarios.values():
+        for o in cen.operadoras:
+            orig = o.planos[:]
+            while len(o.planos) < 6:
+                p = _copy.deepcopy(orig[len(o.planos) % len(orig)]); p.nome = f"Extra {len(o.planos) + 1}"
+                o.planos.append(p)
+    prs = Presentation(str(PPTX))
+    antes = len(prs.slides)
+    avisos = []
+    for s in preencher_estudo(prs, est, avisos):
+        remover_slide(prs, s)
+    tabelas = [sh.table for s in prs.slides for sh in s.shapes if sh.has_table and len(sh.table.columns) == 9]
+    assert len(tabelas) >= 6                                   # 3 slides de faixa por cenário
+    assert any("foram criados" in a for a in avisos)
+    prs.save(str(tmp_path / "f.pptx")); Presentation(str(tmp_path / "f.pptx"))
