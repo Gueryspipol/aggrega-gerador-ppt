@@ -10,6 +10,8 @@ import re
 from typing import Optional
 
 from pptx.enum.shapes import MSO_SHAPE_TYPE
+from pptx.oxml.ns import qn
+from pptx.util import Pt
 
 from . import formatos as f
 from .extract import FAIXA_INICIOS, FAIXA_ROTULOS
@@ -358,6 +360,7 @@ def preencher_faixas(slide, cen: CenarioCalc, grupo: list[OperadoraCalc],
         c = min(range(1, n_valores + 1), key=lambda i: abs(centros[i] - cx))
         por_col[c] = sh
     modelo = rotulos[0] if rotulos else None
+    caixas_rotulo: dict[int, object] = {}
     for c in range(1, n_valores + 1):
         plano = alvo[c]
         sh = por_col.get(c)
@@ -365,9 +368,47 @@ def preencher_faixas(slide, cen: CenarioCalc, grupo: list[OperadoraCalc],
             sh = clonar_caixa(modelo, centros[c])
         if sh is not None:
             definir_linhas(sh, [plano.nome if plano is not None else ""])
-            if plano is not None and len(plano.nome) >= 10:
-                avisos.append(f"Slide de faixas {cen.tipo}: nome do plano '{plano.nome}' é longo e "
-                              f"pode quebrar linha no rótulo; confira o slide")
+            caixas_rotulo[c] = sh
+    _padronizar_rotulos(caixas_rotulo, alvo, centros, quadro.top, tabela, cen.tipo, avisos)
+
+
+LARG_ROTULO = int(1.5 * IN)       # largura útil do nome (um pouco menor que o cartão da coluna)
+ALT_ROTULO = int(0.62 * IN)       # cabe duas linhas; o texto fica colado na tabela (base alinhada)
+FONTE_ROTULO, FONTE_ROTULO_MIN = 14.0, 10.0
+
+
+def _tamanho_rotulo(nomes: list[str]) -> tuple[float, bool]:
+    """Maior fonte (<= padrão) em que o nome mais longo cabe em UMA linha; (fonte, precisa_quebrar)."""
+    maior = max((len(n) for n in nomes), default=0)
+    if maior == 0:
+        return FONTE_ROTULO, False
+    cabe = (LARG_ROTULO / IN) * 72 / (0.60 * maior)         # 0,60 em ~ largura média do negrito
+    tam = max(FONTE_ROTULO_MIN, min(FONTE_ROTULO, cabe))
+    return round(tam * 2) / 2, cabe < FONTE_ROTULO_MIN
+
+
+def _padronizar_rotulos(caixas: dict, alvo: dict, centros: dict, topo_tabela: int, tabela,
+                        tipo: str, avisos: list[str]) -> None:
+    """Todos os nomes de plano com a mesma largura, mesma base e a mesma fonte, centralizados na coluna."""
+    nomes = [alvo[c].nome for c in caixas if alvo.get(c) is not None]
+    tam, quebra = _tamanho_rotulo(nomes)
+    if quebra:
+        longos = [n for n in nomes if len(n) * 0.60 * FONTE_ROTULO_MIN / 72 * IN > LARG_ROTULO]
+        avisos.append(f"Slide de faixas {tipo}: nome de plano muito longo ({', '.join(longos[:3])}); "
+                      f"ficou em duas linhas, confira o slide")
+    for c, sh in caixas.items():
+        corpo = sh.text_frame._txBody.find(qn("a:bodyPr"))
+        corpo.set("wrap", "square"); corpo.set("anchor", "b")
+        corpo.set("lIns", "0"); corpo.set("rIns", "0"); corpo.set("tIns", "0"); corpo.set("bIns", "0")
+        for filho in list(corpo):
+            corpo.remove(filho)
+        corpo.append(corpo.makeelement(qn("a:noAutofit"), {}))
+        sh.width, sh.height = LARG_ROTULO, ALT_ROTULO
+        sh.left = int(centros[c] - LARG_ROTULO / 2)
+        sh.top = int(topo_tabela - 0.04 * IN - ALT_ROTULO)
+        for par in sh.text_frame.paragraphs:
+            for r in par.runs:
+                r.font.size = Pt(tam)
 
 
 # --------------------------------------------------------------------------- #
