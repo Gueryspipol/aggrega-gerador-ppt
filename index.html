@@ -57,10 +57,39 @@ button, input { font: inherit; color: inherit; }
 .fase.feita { color: #dbe5fb; }
 .fase.feita .marca { background: var(--amarelo); border-color: var(--amarelo); }
 .fase.feita .marca::after { content: ""; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px; border: solid var(--marinho); border-width: 0 2.5px 2.5px 0; transform: rotate(40deg); }
-.trilho .rodape { margin-top: auto; font-size: 13px; color: #7b8fba; display: grid; gap: 10px; }
+.trilho .rodape { font-size: 13px; color: #7b8fba; display: grid; gap: 10px; }
 .trilho .arquivo { color: #dbe5fb; word-break: break-all; }
 .link { background: none; border: 0; padding: 0; color: #ffd36a; cursor: pointer; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
 .link:hover { color: #fff; }
+
+
+.trilho .sistema { margin-top: auto; font-size: 13px; color: #7b8fba; display: grid; gap: 6px; padding-top: 16px; border-top: 1px solid #2a4075; }
+
+/* ---------- atualizar sistema ---------- */
+.atualiza { max-width: 760px; }
+.versao { margin-top: 26px; background: var(--superficie); border: 1px solid var(--linha); border-radius: 6px; display: grid; grid-template-columns: auto 1fr auto; gap: 6px 22px; align-items: center; padding: 18px 22px; }
+.versao .cod { font-family: var(--display); font-size: 28px; font-weight: 600; line-height: 1; }
+.versao .rot { font-size: 13px; color: var(--suave); }
+.versao .msg { font-size: 14px; color: var(--suave); grid-column: 1 / -1; border-top: 1px solid var(--linha); padding-top: 10px; margin-top: 6px; }
+.situacao { font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 3px; background: #e3f3ef; color: #0a6c59; white-space: nowrap; }
+.situacao.espera { background: var(--amarelo-claro); color: #7a5600; }
+.situacao.erro { background: #fdecea; color: #a23a1b; }
+.soltar.simples { grid-template-columns: 1fr; min-height: 190px; }
+.soltar.simples .texto { align-items: center; text-align: center; }
+.soltar.simples .texto span { max-width: 52ch; }
+.plano { margin-top: 24px; background: var(--superficie); border: 1px solid var(--linha); border-radius: 6px; }
+.plano h2 { padding: 16px 20px 4px; }
+.plano .grupo { padding: 10px 20px; border-top: 1px solid var(--linha); }
+.plano .grupo:first-of-type { border-top: 0; }
+.plano .grupo b { font-weight: 600; }
+.plano ul { margin: 6px 0 0; padding-left: 20px; color: var(--suave); font-size: 14px; word-break: break-all; }
+.plano .acoes { display: flex; gap: 12px; padding: 16px 20px; border-top: 1px solid var(--linha); background: #f8fafc; border-radius: 0 0 6px 6px; }
+.plano .nada { padding: 8px 20px 20px; color: var(--suave); }
+.andamento { margin-top: 24px; padding: 18px 20px; background: var(--amarelo-claro); border-left: 4px solid var(--amarelo); border-radius: 4px; }
+.andamento.ok { background: #e3f3ef; border-color: var(--economia); }
+.andamento strong { display: block; }
+.voltar { margin-bottom: 18px; }
+.voltar .link { color: var(--marinho-2); }
 
 /* ---------- área principal ---------- */
 .principal { padding: 40px 40px 64px; min-width: 0; }
@@ -80,6 +109,7 @@ h2 { font-size: 21px; font-weight: 600; }
 .soltar .texto { padding: 36px; display: flex; flex-direction: column; justify-content: center; gap: 14px; align-items: flex-start; }
 .soltar .texto strong { font-family: var(--display); font-size: 24px; font-weight: 600; line-height: 1.2; }
 .soltar .texto span { color: var(--suave); max-width: 38ch; }
+.soltar .texto .botao { color: #fff; max-width: none; }
 .botao {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; cursor: pointer;
   background: var(--marinho); color: #fff; padding: 12px 22px; border-radius: 4px; font-weight: 600; font-size: 15px;
@@ -231,6 +261,10 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
       <span class="arquivo" id="nome-arquivo"></span>
       <button class="link" id="trocar" type="button">Enviar outra Matriz</button>
     </div>
+    <div class="sistema" id="sistema" hidden>
+      <button class="link" id="abrir-atualizar" type="button">Atualizar sistema</button>
+      <span id="versao-rodape"></span>
+    </div>
   </aside>
 
   <main class="principal">
@@ -263,6 +297,41 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
         <strong id="alerta-msg"></strong>
         <details id="alerta-det" hidden><summary>O que o robô enxergou no arquivo</summary><pre id="alerta-diag"></pre></details>
       </div>
+    </section>
+
+    <!-- atualizar sistema -->
+    <section id="tela-atualizar" class="atualiza" hidden>
+      <div class="voltar"><button class="link" id="voltar-atualizar" type="button">← Voltar</button></div>
+      <h1>Atualizar o sistema</h1>
+      <p class="sub">Envie os arquivos novos do projeto (ou um .zip). O site compara com o GitHub, mostra o que vai mudar e publica tudo de uma vez.</p>
+
+      <div class="versao" id="versao-card">
+        <div><div class="rot">Versão instalada</div><div class="cod" id="v-cod">…</div></div>
+        <div></div>
+        <span class="situacao" id="v-situacao">Verificando…</span>
+        <div class="msg" id="v-msg" hidden></div>
+      </div>
+
+      <label class="soltar simples" id="soltar-up" for="arquivos-up">
+        <div class="texto">
+          <strong>Arraste os arquivos ou um .zip aqui</strong>
+          <span>Pode enviar vários de uma vez (.py, index.html, logos .png…). Arquivos iguais aos do GitHub são ignorados.</span>
+          <span class="botao" role="presentation">Escolher arquivos</span>
+        </div>
+        <input id="arquivos-up" type="file" multiple hidden>
+      </label>
+      <div class="lendo" id="up-lendo" hidden><span class="giro"></span><span id="up-lendo-txt">Conferindo com o GitHub…</span></div>
+      <div class="alerta" id="up-erro" hidden><strong id="up-erro-msg"></strong></div>
+
+      <div class="plano" id="plano" hidden>
+        <h2>O que vai mudar</h2>
+        <div id="plano-corpo"></div>
+        <div class="acoes">
+          <button class="botao amarelo" id="up-publicar" type="button">Publicar atualização</button>
+          <button class="botao contorno" id="up-cancelar" type="button">Cancelar</button>
+        </div>
+      </div>
+      <div class="andamento" id="andamento" hidden><strong id="and-titulo"></strong><span id="and-txt"></span></div>
     </section>
 
     <!-- comparação -->
@@ -337,7 +406,7 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
     });
   }
   function tela(nome) {
-    ["acesso", "matriz", "comparar"].forEach((t) => ($("tela-" + t).hidden = t !== nome));
+    ["acesso", "matriz", "comparar", "atualizar"].forEach((t) => ($("tela-" + t).hidden = t !== nome));
   }
   async function api(url, opcoes) {
     let r;
@@ -523,11 +592,112 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
     $("resultado").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
+  /* ---------------- atualizar sistema ---------------- */
+  let telaAntes = "matriz", planoToken = null, sondando = null;
+  const upEl = $("soltar-up");
+  ["dragenter", "dragover"].forEach((n) => upEl.addEventListener(n, (e) => { e.preventDefault(); upEl.classList.add("sobre"); }));
+  ["dragleave", "drop"].forEach((n) => upEl.addEventListener(n, (e) => { e.preventDefault(); upEl.classList.remove("sobre"); }));
+  upEl.addEventListener("drop", (e) => { if (e.dataTransfer.files.length) analisarArquivos(e.dataTransfer.files); });
+  $("arquivos-up").addEventListener("change", (e) => { if (e.target.files.length) analisarArquivos(e.target.files); e.target.value = ""; });
+  $("abrir-atualizar").addEventListener("click", () => {
+    telaAntes = ["matriz", "comparar"].find((t) => !$("tela-" + t).hidden) || "matriz";
+    tela("atualizar"); carregarVersao();
+  });
+  $("voltar-atualizar").addEventListener("click", () => { pararSonda(); tela(telaAntes); });
+  $("up-cancelar").addEventListener("click", () => { planoToken = null; $("plano").hidden = true; });
+
+  function pararSonda() { if (sondando) { clearInterval(sondando); sondando = null; } }
+
+  function situacao(txt, tipo) {
+    const el = $("v-situacao"); el.textContent = txt; el.className = "situacao" + (tipo ? " " + tipo : "");
+  }
+  async function carregarVersao() {
+    try {
+      const v = await api("/api/versao");
+      $("v-cod").textContent = v.rodando || v.versao;
+      $("versao-rodape").textContent = "Versão " + (v.rodando || v.versao);
+      const g = v.github, m = $("v-msg");
+      m.hidden = !g;
+      if (g) m.textContent = "Último envio ao GitHub: " + (g.mensagem || g.curto) +
+        (g.data ? " · " + new Date(g.data).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "");
+      if (!v.senha_ok) situacao("Ative a senha do site (APP_SENHA)", "erro");
+      else if (!v.token_ok) situacao("Falta GITHUB_TOKEN no Render", "erro");
+      else if (v.aviso) { situacao("GitHub indisponível", "erro"); m.hidden = false; m.textContent = v.aviso; }
+      else if (v.publicando) situacao("Publicando nova versão…", "espera");
+      else if (v.atualizado) situacao("Atualizado");
+      else situacao("Conectado ao GitHub");
+      return v;
+    } catch (e) { situacao("Sem resposta do servidor", "erro"); return null; }
+  }
+
+  function mostrarErroUp(msg) { $("up-erro-msg").textContent = msg; $("up-erro").hidden = false; }
+
+  async function analisarArquivos(lista) {
+    $("up-erro").hidden = true; $("plano").hidden = true; $("andamento").hidden = true;
+    $("up-lendo-txt").textContent = "Conferindo com o GitHub…"; $("up-lendo").hidden = false;
+    const f = new FormData();
+    [...lista].forEach((a) => f.append("arquivos", a, a.name));
+    try {
+      const r = await api("/api/atualizar/analisar", { method: "POST", body: f });
+      planoToken = r.token;
+      const bloco = (titulo, itens) => itens.length
+        ? `<div class="grupo"><b>${titulo} (${itens.length})</b><ul>${itens.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></div>` : "";
+      let html = bloco("Novos", r.novos) + bloco("Alterados", r.alterados) +
+        (r.iguais.length ? `<div class="grupo"><b>Já iguais no GitHub (${r.iguais.length})</b><span> — serão ignorados.</span></div>` : "") +
+        bloco("Ignorados", r.ignorados) + bloco("Atenção", r.avisos);
+      if (!r.total) html = `<p class="nada">Nada a publicar: tudo o que você enviou já está igual no GitHub.</p>` + html;
+      $("plano-corpo").innerHTML = html;
+      $("up-publicar").hidden = !r.total;
+      $("up-publicar").textContent = r.total === 1 ? "Publicar 1 arquivo" : `Publicar ${r.total} arquivos`;
+      $("plano").hidden = false;
+    } catch (e) {
+      if (e.status === 401) return iniciar();
+      mostrarErroUp(e.message);
+    } finally { $("up-lendo").hidden = true; }
+  }
+
+  $("up-publicar").addEventListener("click", async () => {
+    if (!planoToken) return;
+    $("up-publicar").disabled = true; $("up-erro").hidden = true;
+    $("up-lendo-txt").textContent = "Enviando ao GitHub…"; $("up-lendo").hidden = false;
+    try {
+      const r = await api("/api/atualizar/publicar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: planoToken }) });
+      planoToken = null; $("plano").hidden = true;
+      const a = $("andamento"); a.className = "andamento"; a.hidden = false;
+      $("and-titulo").textContent = "Enviado ao GitHub (" + r.curto + ")";
+      $("and-txt").textContent = "O Render está publicando a nova versão. O site pode ficar fora do ar por cerca de 1 a 2 minutos e volta sozinho.";
+      situacao("Publicando nova versão…", "espera");
+      acompanhar(r.sha);
+    } catch (e) {
+      mostrarErroUp(e.message);
+    } finally { $("up-lendo").hidden = true; $("up-publicar").disabled = false; }
+  });
+
+  function acompanhar(sha) {
+    pararSonda();
+    let tentativas = 0;
+    sondando = setInterval(async () => {
+      if (++tentativas > 60) { pararSonda(); return; }
+      let v = null;
+      try { v = await fetch("/api/versao").then((r) => (r.ok ? r.json() : null)); } catch (_) { v = null; }
+      if (v && v.rodando_completo === sha) {
+        pararSonda();
+        const a = $("andamento"); a.className = "andamento ok";
+        $("and-titulo").textContent = "Nova versão no ar (" + v.rodando + ")";
+        $("and-txt").textContent = "Pronto. Recarregue a página (F5) para usar a versão nova.";
+        situacao("Atualizado"); $("v-cod").textContent = v.rodando;
+        $("versao-rodape").textContent = "Versão " + v.rodando;
+      }
+    }, 10000);
+  }
+
   /* ---------------- início ---------------- */
   async function iniciar() {
     try {
       const s = await api("/api/estado");
       estado.max = s.max_operadoras || 4;
+      $("sistema").hidden = !(s.autenticado);
+      $("versao-rodape").textContent = "Versão " + (s.versao || "");
       if (s.precisa_senha && !s.autenticado) { tela("acesso"); return; }
       if (estado.dados) return;
       fase(1); tela("matriz");

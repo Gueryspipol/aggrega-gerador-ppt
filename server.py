@@ -36,8 +36,9 @@ from apresentador360.calc import MAX_OPERADORAS, calcular, listar_operadoras  # 
 from apresentador360.extract import carregar_matriz, diagnosticar  # noqa: E402
 from apresentador360.logos import Catalogo  # noqa: E402
 from apresentador360.pipeline import gerar, mes_do_arquivo  # noqa: E402
+import atualizar  # noqa: E402
 
-VERSAO = "web 1"
+VERSAO = "web 2"
 SENHA = os.environ.get("APP_SENHA", "")
 TEMPLATES = RAIZ / "templates"
 PASTA_TRABALHO = Path(tempfile.gettempdir()) / "apresentador360"
@@ -143,6 +144,73 @@ def entrar():
         session["ok"] = True
         return jsonify({"ok": True})
     return _erro("Senha incorreta.", 401)
+
+
+# --------------------------------- atualização do sistema --------------------------------- #
+_PLANOS: dict[str, dict] = {}      # planos de atualização aguardando confirmação
+_VALIDADE_PLANO_S = 15 * 60
+
+
+def _exige_atualizacao():
+    if not SENHA:
+        return _erro("Por segurança, a aba Atualizar só funciona com a senha do site ativada "
+                     "(variável APP_SENHA no Render).", 403)
+    if not atualizar.token():
+        return _erro("Falta a variável GITHUB_TOKEN no Render (Environment).", 503)
+    return None
+
+
+@app.get("/api/versao")
+def versao():
+    rodando = os.environ.get("RENDER_GIT_COMMIT", "")
+    info = {"versao": VERSAO, "rodando": rodando[:7], "rodando_completo": rodando,
+            "repositorio": atualizar.REPO, "ramo": atualizar.RAMO,
+            "token_ok": bool(atualizar.token()), "senha_ok": bool(SENHA)}
+    if atualizar.token():
+        try:
+            ult = atualizar.ultimo_commit()
+            info["github"] = ult
+            info["atualizado"] = bool(ult and rodando and ult["sha"] == rodando)
+            info["publicando"] = bool(ult and rodando and ult["sha"] != rodando)
+        except atualizar.ErroAtualizacao as e:
+            info["aviso"] = str(e)
+    return jsonify(info)
+
+
+@app.post("/api/atualizar/analisar")
+def atualizar_analisar():
+    negado = _exige_atualizacao()
+    if negado:
+        return negado
+    arquivos = [(f.filename or "", f.read()) for f in request.files.getlist("arquivos") if f.filename]
+    if not arquivos:
+        return _erro("Escolha os arquivos (ou um .zip) para atualizar.")
+    try:
+        plano, efetivos, _ = atualizar.montar_plano(arquivos)
+    except atualizar.ErroAtualizacao as e:
+        return _erro(str(e), e.codigo)
+    agora = time.time()
+    for k in [k for k, v in _PLANOS.items() if agora - v["quando"] > _VALIDADE_PLANO_S]:
+        _PLANOS.pop(k, None)
+    token = uuid.uuid4().hex
+    _PLANOS[token] = {"efetivos": efetivos, "quando": agora}
+    return jsonify({"token": token, **plano.resumo(), "total": len(efetivos)})
+
+
+@app.post("/api/atualizar/publicar")
+def atualizar_publicar():
+    negado = _exige_atualizacao()
+    if negado:
+        return negado
+    token = str((request.get_json(silent=True) or {}).get("token", ""))
+    plano = _PLANOS.pop(token, None)
+    if not plano:
+        return _erro("Esta conferência expirou (o site pode ter reiniciado). Envie os arquivos de novo.", 410)
+    try:
+        resultado = atualizar.publicar(plano["efetivos"])
+    except atualizar.ErroAtualizacao as e:
+        return _erro(str(e), e.codigo)
+    return jsonify(resultado)
 
 
 # ------------------------------------ fluxo ------------------------------------ #
