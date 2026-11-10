@@ -307,8 +307,8 @@ def logos_tabela_financeira(slide, logos_cols: list) -> None:
 
 
 def logos_faixas(slide, grupos_logos: list[tuple[int, int, list]], altura_slide: int) -> None:
-    """Slides 16/17/20/21: o logo da operadora fica logo acima das colunas dos planos dela
-    (grupos_logos = [(coluna_inicial, coluna_final, [logos])], colunas contadas a partir de 0)."""
+    """Slides 16/17/20/21: o logo da operadora fica dentro do cartão de cada coluna, logo acima do nome
+    do plano (grupos_logos = [(coluna_inicial, coluna_final, [logos])], colunas contadas a partir de 0)."""
     largura = slide.part.package.presentation_part.presentation.slide_width
     caixas = [x for x in slide.shapes if x.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE
               and 0.5 * altura_slide <= x.height <= 0.8 * altura_slide and x.width < 0.12 * largura]
@@ -321,7 +321,7 @@ def logos_faixas(slide, grupos_logos: list[tuple[int, int, list]], altura_slide:
             continue
         a, b = caixas[ini], caixas[min(fim, len(caixas) - 1)]
         span = b.left + b.width - a.left
-        _colar_logos(slide, caminhos, a.left + span / 2, topo - 0.42 * IN, min(span * 0.88, 1.9 * IN), 0.55 * IN)
+        _colar_logos(slide, caminhos, a.left + span / 2, topo + 0.62 * IN, min(span * 0.80, 1.3 * IN), 0.50 * IN)
 
 
 # --------------------------------------------------------------------------- #
