@@ -11,6 +11,7 @@ from typing import Optional
 
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.oxml.ns import qn
+from pptx.dml.color import RGBColor
 from pptx.util import Pt
 
 from . import formatos as f
@@ -375,6 +376,7 @@ def preencher_faixas(slide, cen: CenarioCalc, grupo: list[OperadoraCalc],
 LARG_ROTULO = int(1.5 * IN)       # largura útil do nome (um pouco menor que o cartão da coluna)
 ALT_ROTULO = int(0.62 * IN)       # cabe duas linhas; o texto fica colado na tabela (base alinhada)
 FONTE_ROTULO, FONTE_ROTULO_MIN = 14.0, 10.0
+COR_ROTULO = RGBColor(0x00, 0x00, 0x00)   # nomes dos planos em preto (o template usa cinza-escuro)
 
 
 def _tamanho_rotulo(nomes: list[str]) -> tuple[float, bool]:
@@ -409,6 +411,7 @@ def _padronizar_rotulos(caixas: dict, alvo: dict, centros: dict, topo_tabela: in
         for par in sh.text_frame.paragraphs:
             for r in par.runs:
                 r.font.size = Pt(tam)
+                r.font.color.rgb = COR_ROTULO
 
 
 # --------------------------------------------------------------------------- #
