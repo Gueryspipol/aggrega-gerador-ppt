@@ -52,6 +52,8 @@ button, input { font: inherit; color: inherit; }
 .fase .marca { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #3b538c; background: var(--marinho); position: relative; z-index: 1; }
 .fase .nome { font-weight: 500; color: inherit; line-height: 22px; }
 .fase .detalhe { display: block; font-size: 13px; color: #7b8fba; line-height: 1.35; margin-top: 2px; font-weight: 400; }
+.fase.clicavel { cursor: pointer; }
+.fase.clicavel:hover .nome { color: #fff; }
 .fase.atual { color: #fff; }
 .fase.atual .marca { border-color: var(--amarelo); box-shadow: 0 0 0 4px rgba(255, 180, 0, .22); }
 .fase.feita { color: #dbe5fb; }
@@ -255,7 +257,8 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
     <ol class="fases" aria-label="Etapas">
       <li class="fase atual" id="fase-1"><span class="marca"></span><span class="nome">Matriz<span class="detalhe" id="d-1">Envie o arquivo do cliente</span></span></li>
       <li class="fase" id="fase-2"><span class="marca"></span><span class="nome">Operadoras<span class="detalhe" id="d-2">Escolha de 1 a 4</span></span></li>
-      <li class="fase" id="fase-3"><span class="marca"></span><span class="nome">Apresentação<span class="detalhe" id="d-3">Gere e baixe o PowerPoint</span></span></li>
+      <li class="fase" id="fase-3"><span class="marca"></span><span class="nome">Dados do cliente<span class="detalhe" id="d-3">Cliente e meses</span></span></li>
+      <li class="fase" id="fase-4"><span class="marca"></span><span class="nome">Apresentação<span class="detalhe" id="d-4">Gere e baixe o PowerPoint</span></span></li>
     </ol>
     <div class="rodape" id="rodape" hidden>
       <span class="arquivo" id="nome-arquivo"></span>
@@ -396,15 +399,51 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
   const pct = (x, casas = 0) => (x * 100).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }) + "%";
   const sinal = (x) => (x > 0 ? "+" : x < 0 ? "−" : "") + pct(Math.abs(x));
 
-  const estado = { dados: null, cenario: "CC", sel: [], max: 4, gerando: false };
+  const estado = { dados: null, cenario: "CC", sel: [], max: 4, gerando: false, gerada: false };
 
-  function fase(atual, feitas = []) {
-    [1, 2, 3].forEach((n) => {
-      const el = $("fase-" + n);
-      el.classList.toggle("atual", n === atual);
-      el.classList.toggle("feita", feitas.includes(n));
+  /* Etapas da barra lateral: acompanham o andamento real do trabalho. */
+  function etapas() {
+    const d = estado.dados, n = estado.sel.length;
+    const falta = [];
+    if (d) {
+      if (!$("cliente").value.trim()) falta.push("o cliente");
+      if (!$("mes-atual").value.trim()) falta.push("o mês atual");
+      if (!$("mes-reaj").value.trim()) falta.push("o mês do reajuste");
+    }
+    const feita = [!!d, false, false, false];
+    feita[1] = feita[0] && n > 0;
+    feita[2] = feita[1] && falta.length === 0;
+    feita[3] = feita[2] && estado.gerada;
+    const atual = feita.indexOf(false) + 1;               // 0 = tudo concluído
+    const txt = [
+      d ? d.cenarios.join(" e ") + " · " + d.operadoras.length + " operadoras" : "Envie o arquivo do cliente",
+      n ? n + (n === 1 ? " selecionada" : " selecionadas") : "Escolha de 1 a " + estado.max,
+      !d || !feita[1] ? "Cliente e meses do estudo" : falta.length ? "Falta preencher " + falta.join(", ") : "Dados conferidos",
+      estado.gerando ? "Montando a apresentação…" : feita[3] ? "Pronta para baixar" : "Gere e baixe o PowerPoint",
+    ];
+    [1, 2, 3, 4].forEach((k) => {
+      const el = $("fase-" + k);
+      el.classList.toggle("atual", k === atual);
+      el.classList.toggle("feita", feita[k - 1]);
+      el.classList.toggle("clicavel", !!d && k > 1);
+      $("d-" + k).textContent = txt[k - 1];
     });
   }
+  const fase = () => etapas();
+  const alvos = { 2: "escada", 3: "painel", 4: "gerar" };
+  [2, 3, 4].forEach((k) => {
+    const ir = () => {
+      if (!estado.dados || $("tela-comparar").hidden) return;
+      $(alvos[k]).scrollIntoView({ behavior: "smooth", block: "center" });
+      if (k === 3) $(!$("cliente").value.trim() ? "cliente" : !$("mes-atual").value.trim() ? "mes-atual" : "mes-reaj").focus({ preventScroll: true });
+    };
+    const el = $("fase-" + k);
+    el.addEventListener("click", ir);
+    el.tabIndex = 0;
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter") ir(); });
+  });
+  ["cliente", "op-atual", "mes-atual", "mes-reaj"].forEach((id) => $(id).addEventListener("input", etapas));
+
   function tela(nome) {
     ["acesso", "matriz", "comparar", "atualizar"].forEach((t) => ($("tela-" + t).hidden = t !== nome));
   }
@@ -461,11 +500,9 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
   }
 
   function reiniciar() {
-    estado.dados = null; estado.sel = []; estado.cenario = "CC";
+    estado.dados = null; estado.sel = []; estado.cenario = "CC"; estado.gerada = false;
     $("resultado").hidden = true; $("pronto").hidden = true; $("erro-gerar").hidden = true;
     $("rodape").hidden = true;
-    $("d-1").textContent = "Envie o arquivo do cliente"; $("d-2").textContent = "Escolha de 1 a 4";
-    $("d-3").textContent = "Gere e baixe o PowerPoint";
     fase(1); tela("matriz");
   }
 
@@ -476,13 +513,12 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
   }
 
   function abrirComparacao(d) {
-    estado.dados = d; estado.sel = []; estado.cenario = d.cenarios.includes("CC") ? "CC" : d.cenarios[0];
+    estado.dados = d; estado.sel = []; estado.gerada = false; estado.cenario = d.cenarios.includes("CC") ? "CC" : d.cenarios[0];
     $("nome-arquivo").textContent = d.arquivo; $("rodape").hidden = false;
     $("titulo-cliente").textContent = d.cliente || "Comparativo de operadoras";
     $("op-atual").value = d.logo_atual ? d.operadora_atual : "";
     $("nota-logo-atual").hidden = !!d.logo_atual;
     $("cliente").value = d.cliente || ""; $("mes-atual").value = d.mes_atual || ""; $("mes-reaj").value = "";
-    $("d-1").textContent = d.cenarios.join(" e ") + " · " + d.operadoras.length + " operadoras";
     $("resumo").innerHTML =
       `<div><dt>Vidas</dt><dd>${d.vidas}</dd></div>` +
       `<div><dt>Fatura atual</dt><dd>${brl0.format(d.fatura_atual)}</dd></div>` +
@@ -534,7 +570,7 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
     if (i >= 0) estado.sel.splice(i, 1);
     else if (estado.sel.length < estado.max) estado.sel.push(indice);
     else return;
-    $("pronto").hidden = true;
+    $("pronto").hidden = true; estado.gerada = false;
     desenhar(false); atualizarPainel();
   }
 
@@ -546,13 +582,12 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
       ? escolhidas.map((o) => `<li><span>${esc(o.nome)}</span><span>${brl0.format(o[ref] || 0)}</span></li>`).join("")
       : `<li class="vazio">Nenhuma operadora marcada.</li>`;
     $("gerar").disabled = n === 0 || estado.gerando;
-    $("d-2").textContent = n ? n + (n === 1 ? " selecionada" : " selecionadas") : "Escolha de 1 a 4";
-    fase(2, [1]);
+    etapas();
   }
 
   /* ---------------- geração ---------------- */
   $("gerar").addEventListener("click", async () => {
-    estado.gerando = true; $("gerar").disabled = true; $("gerar").textContent = "Montando a apresentação…";
+    estado.gerando = true; estado.gerada = false; $("gerar").disabled = true; $("gerar").textContent = "Montando a apresentação…"; etapas();
     $("progresso").hidden = false; $("erro-gerar").hidden = true; $("pronto").hidden = true;
     try {
       const r = await api("/api/gerar", {
@@ -566,7 +601,7 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
       $("pronto-nome").textContent = r.arquivo;
       $("baixar").href = r.download; $("pronto").hidden = false;
       mostrarResultado(r);
-      $("d-3").textContent = "Pronta para baixar"; fase(3, [1, 2]);
+      estado.gerada = true;
     } catch (e) {
       if (e.status === 401) return iniciar();
       $("erro-gerar").textContent = e.message; $("erro-gerar").hidden = false;
