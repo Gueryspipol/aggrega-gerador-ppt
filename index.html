@@ -67,6 +67,17 @@ button, input { font: inherit; color: inherit; }
 
 .trilho .sistema { margin-top: auto; font-size: 13px; color: #7b8fba; display: grid; gap: 6px; padding-top: 16px; border-top: 1px solid #2a4075; }
 
+.tipos { display: inline-grid; grid-template-columns: 1fr 1fr; margin: 24px 0 4px; border: 1px solid var(--linha); border-radius: 6px; overflow: hidden; background: var(--superficie); }
+.tipos label { display: grid; gap: 2px; padding: 12px 24px; cursor: pointer; min-width: 220px; border-right: 1px solid var(--linha); }
+.tipos label:last-child { border-right: 0; }
+.tipos input { position: absolute; opacity: 0; pointer-events: none; }
+.tipos b { font-family: var(--display); font-size: 17px; font-weight: 600; }
+.tipos small { color: var(--suave); font-size: 13px; }
+.tipos label:has(input:checked) { background: var(--marinho); color: #fff; }
+.tipos label:has(input:checked) small { color: #c9d6f2; }
+.tipos label:has(input:focus-visible) { outline: 3px solid var(--foco); outline-offset: -3px; }
+.tipo-nota { color: var(--suave); font-size: 14px; margin: 8px 0 22px; min-height: 1.4em; }
+
 /* ---------- atualizar sistema ---------- */
 .atualiza { max-width: 760px; }
 .versao { margin-top: 26px; background: var(--superficie); border: 1px solid var(--linha); border-radius: 6px; display: grid; grid-template-columns: auto 1fr auto; gap: 6px 22px; align-items: center; padding: 18px 22px; }
@@ -286,6 +297,11 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
     <section id="tela-matriz" class="entrada" hidden>
       <h1>Comece pela Matriz do cliente</h1>
       <p class="sub">O robô lê as cotações, ordena as operadoras do menor para o maior custo e preenche o template da Aggrega.</p>
+      <div class="tipos" role="radiogroup" aria-label="Tipo de Matriz">
+        <label><input type="radio" name="tipo" value="pme" checked><b>Matriz PME</b><small>Cotação com valor por faixa etária</small></label>
+        <label><input type="radio" name="tipo" value="empresarial"><b>Matriz Empresarial</b><small>Sem custo por faixa etária</small></label>
+      </div>
+      <p class="tipo-nota" id="tipo-nota"></p>
       <label class="soltar" id="soltar" for="arquivo">
         <div class="texto">
           <strong>Arraste a Matriz aqui</strong>
@@ -479,11 +495,24 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
   $("arquivo").addEventListener("change", (e) => { if (e.target.files[0]) enviar(e.target.files[0]); e.target.value = ""; });
   $("trocar").addEventListener("click", reiniciar);
 
+  /* tipo de Matriz (PME ou Empresarial) */
+  const tipoAtual = () => (document.querySelector('input[name="tipo"]:checked') || {}).value || "pme";
+  const NOTAS = {
+    pme: "",
+    empresarial: "O robô lê o layout Empresarial e remove da apresentação os slides de custo por faixa etária. Abas de cenário ocultas na Matriz (por exemplo, sem coparticipação) são ignoradas.",
+  };
+  try { const t = localStorage.getItem("tipoMatriz"); if (t && NOTAS[t] !== undefined) document.querySelector(`input[name="tipo"][value="${t}"]`).checked = true; } catch (_) { /* opcional */ }
+  document.querySelectorAll('input[name="tipo"]').forEach((el) => el.addEventListener("change", () => {
+    $("tipo-nota").textContent = NOTAS[tipoAtual()];
+    try { localStorage.setItem("tipoMatriz", tipoAtual()); } catch (_) { /* opcional */ }
+  }));
+  $("tipo-nota").textContent = NOTAS[tipoAtual()];
+
   async function enviar(arq) {
     $("alerta-leitura").hidden = true;
     $("lendo").hidden = false;
     const f = new FormData();
-    f.append("matriz", arq);
+    f.append("matriz", arq); f.append("tipo", tipoAtual());
     try {
       const dados = await api("/api/ler", { method: "POST", body: f });
       $("lendo").hidden = true;

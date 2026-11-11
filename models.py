@@ -14,6 +14,7 @@ class Plano:
     vidas: int
     total: float                   # soma mensal do plano (linha "Total")
     por_faixa: list[Optional[float]] = field(default_factory=list)  # per capita, uma por faixa
+    total_bruto: Optional[float] = None   # Empresarial: total ANTES do desconto (quando há desconto)
 
     @property
     def custo_medio(self) -> float:
@@ -28,6 +29,7 @@ class Bloco:
     linha: int
     faixas: list[str]
     planos: list[Plano]
+    com_desconto: bool = False     # Empresarial: o total já considera desconto/diluição da fatura
 
     @property
     def total_mensal(self) -> float:
@@ -63,6 +65,7 @@ class Matriz:
     cliente: Optional[str] = None
     mes_reajuste: Optional[str] = None
     congenere: Optional[str] = None            # operadora(s) atual(is), se a Matriz informar
+    avisos: list[str] = field(default_factory=list)   # observações da leitura (ex.: aba oculta ignorada)
 
 
 # --------------------------------------------------------------------------- #

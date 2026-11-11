@@ -213,6 +213,9 @@ def atualizar_publicar():
     return jsonify(resultado)
 
 
+TIPOS_MATRIZ = ("pme", "empresarial")
+
+
 # ------------------------------------ fluxo ------------------------------------ #
 @app.post("/api/ler")
 def ler():
@@ -220,14 +223,18 @@ def ler():
     arq = request.files.get("matriz")
     if not arq or not arq.filename.lower().endswith(".xlsx"):
         return _erro("Envie um arquivo .xlsx.")
+    tipo = (request.form.get("tipo") or "pme").strip().lower()
+    if tipo not in TIPOS_MATRIZ:
+        return _erro("Tipo de Matriz inválido (use PME ou Empresarial).")
     token = uuid.uuid4().hex
     pasta = _pasta(token)
     pasta.mkdir(parents=True, exist_ok=True)
     nome = Path(arq.filename).name
     caminho = pasta / nome
     arq.save(caminho)
+    (pasta / "tipo.txt").write_text(tipo, encoding="utf-8")
     try:
-        matriz = carregar_matriz(caminho)
+        matriz = carregar_matriz(caminho, tipo=tipo)
         ops = [o for o in listar_operadoras(matriz) if any(o.get(t, 0) > 0 for t in matriz.cenarios)]
         if not ops:
             raise ValueError("Nenhuma operadora com valores foi encontrada na Matriz.")
@@ -244,7 +251,7 @@ def ler():
     mes = mes_do_arquivo(caminho)
     catalogo = Catalogo()
     return jsonify({
-        "token": token, "arquivo": nome, "cliente": matriz.cliente or "",
+        "token": token, "tipo": tipo, "arquivo": nome, "cliente": matriz.cliente or "",
         "mes_atual": f"{mes[0]}/{mes[1]}" if mes else "",
         "cenarios": list(matriz.cenarios),
         "vidas": ref.total_vidas, "fatura_atual": ref.fatura_atual,
@@ -270,6 +277,10 @@ def gerar_apresentacao():
     tpl = _template()
     if tpl is None:
         return _erro("Template .pptx não encontrado no repositório (pasta templates/).", 500)
+    try:
+        tipo = (pasta / "tipo.txt").read_text(encoding="utf-8").strip()
+    except OSError:
+        tipo = "pme"
     escolha = dados.get("operadoras") or []
     cliente = (dados.get("cliente") or "").strip()
     try:
@@ -279,7 +290,8 @@ def gerar_apresentacao():
         saida = saida_dir / f"{base}.pptx"
         r = gerar(origem, tpl, saida, operadoras=[int(i) for i in escolha], cliente=cliente or None,
                   mes_atual=(dados.get("mes_atual") or None), mes_reajuste=(dados.get("mes_reajuste") or None),
-                  operadora_atual=(dados.get("operadora_atual") or None))
+                  operadora_atual=(dados.get("operadora_atual") or None),
+                  tipo=tipo)
     except Exception as e:  # noqa: BLE001
         return _erro(f"Não foi possível gerar: {e}", 422)
     return jsonify({

@@ -129,9 +129,13 @@ def _dica_nome(nome: str) -> Optional[str]:
     return None
 
 
-def achar_abas(wb) -> dict[str, str]:
-    """{'CC': nome, 'SC': nome} a partir do conteúdo das abas."""
+def achar_abas(wb, somente_visiveis: bool = False) -> dict[str, str]:
+    """{'CC': nome, 'SC': nome} a partir do conteúdo das abas.
+    somente_visiveis: ignora abas ocultas (se TODAS as candidatas estiverem ocultas, usa todas)."""
     candidatas = [n for n in wb.sheetnames if _tem_blocos_operadora(wb[n])]
+    if somente_visiveis:
+        visiveis = [n for n in candidatas if wb[n].sheet_state == "visible"]
+        candidatas = visiveis or candidatas
     rotulo: dict[str, Optional[str]] = {}
     for n in candidatas:
         rotulo[n] = _dica_nome(n) or _dica_conteudo(wb[n])
@@ -379,11 +383,20 @@ def _ler_congenere(wb, abas: dict[str, str]) -> Optional[str]:
     return None
 
 
-def carregar_matriz(caminho: str | Path, cliente: Optional[str] = None) -> Matriz:
+def carregar_matriz(caminho: str | Path, cliente: Optional[str] = None, tipo: str = "pme") -> Matriz:
+    """tipo: "pme" (padrão) ou "empresarial" (outro layout de cenários; ver extract_empresarial)."""
     caminho = Path(caminho)
     wb = openpyxl.load_workbook(caminho, data_only=True)
-    abas = achar_abas(wb)
-    cenarios = {tipo: ler_cenario(wb[aba], tipo) for tipo, aba in abas.items()}
+    if tipo == "empresarial":
+        from . import extract_empresarial as emp
+        emp.conferir_tipo(wb, tipo)
+        abas = achar_abas(wb, somente_visiveis=True)
+        cenarios = {t: emp.ler_cenario_empresarial(wb[aba], t) for t, aba in abas.items()}
+    else:
+        from . import extract_empresarial as emp
+        emp.conferir_tipo(wb, tipo)
+        abas = achar_abas(wb)
+        cenarios = {t: ler_cenario(wb[aba], t) for t, aba in abas.items()}
     if not cenarios:
         raise ValueError("Nenhuma aba de cenário encontrada.\n\n" + diagnosticar(caminho))
     if "CC" in cenarios and "SC" in cenarios:
@@ -392,6 +405,13 @@ def carregar_matriz(caminho: str | Path, cliente: Optional[str] = None) -> Matri
         demografia = ler_demografia(wb)
     except ValueError as e:
         raise ValueError(f"{e}\n\n{diagnosticar(caminho)}") from None
+    avisos = []
+    if tipo == "empresarial":
+        ocultas = [n for n in wb.sheetnames if wb[n].sheet_state != "visible"
+                   and n not in abas.values() and _tem_blocos_operadora(wb[n])]
+        if ocultas:
+            avisos.append("Aba(s) oculta(s) com cotação ignorada(s): " + ", ".join(ocultas)
+                          + ". Só os cenários das abas visíveis foram usados.")
     return Matriz(caminho=str(caminho), cenarios=cenarios, demografia=demografia,
                   cliente=cliente or _cliente_do_arquivo(caminho),
-                  congenere=_ler_congenere(wb, abas))
+                  congenere=_ler_congenere(wb, abas), avisos=avisos)

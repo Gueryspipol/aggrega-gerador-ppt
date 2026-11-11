@@ -465,7 +465,7 @@ def validar_template(prs, tipos: list[str]) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-def preencher_estudo(prs, estudo: Estudo, avisos: list[str], catalogo=None) -> list:
+def preencher_estudo(prs, estudo: Estudo, avisos: list[str], catalogo=None, com_faixas: bool = True) -> list:
     """Preenche todos os slides e devolve a lista de slides a remover."""
     slides = list(prs.slides)
     problemas = validar_template(prs, list(estudo.cenarios))
@@ -522,6 +522,9 @@ def preencher_estudo(prs, estudo: Estudo, avisos: list[str], catalogo=None) -> l
             preencher_financeira(pg, cen, avisos, pagina=i)
             if logos_cols:
                 logos_tabela_financeira(pg, logos_cols)
+        if not com_faixas:                     # Matriz Empresarial: sem custo por faixa etária
+            remover += [s(n) for n in mapa["faixas"]]
+            continue
         tabela_faixas = next(x for x in s(mapa["faixas"][0]).shapes if x.has_table).table
         capacidade = len(tabela_faixas.columns) - 1
         grupos: list[list[OperadoraCalc]] = [[]]

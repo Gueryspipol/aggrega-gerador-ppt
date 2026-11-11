@@ -136,6 +136,11 @@ def _calc_cenario(cen: CenarioMatriz, indices: list[int], nome_op, avisos: list[
         if not planos:
             avisos.append(f"{cen.tipo}: {nome_op(idx)} sem nenhum plano com valores")
         total = sum(p.total for p in planos)
+        bloco = cen.blocos[idx]
+        if bloco.com_desconto:
+            bruto = sum(p.total_bruto if p.total_bruto is not None else p.total for p in bloco.planos if p.vidas > 0)
+            avisos.append(f"{cen.tipo}: {nome_op(idx)} usa o valor COM desconto/diluição da fatura "
+                          f"({total:,.2f}); sem desconto seria {bruto:,.2f}")
         ops.append(OperadoraCalc(
             nome=nome_op(idx), bloco_indice=idx, total_mensal=total,
             reducao_mensal=total - fatura_reaj,
@@ -152,7 +157,7 @@ def calcular(matriz: Matriz, selecao: Optional[Selecao] = None, *,
              mes_atual: Optional[tuple[str, int]] = None,
              mes_reajuste: Optional[tuple[str, int]] = None,
              operadora_atual: Optional[str] = None) -> Estudo:
-    avisos: list[str] = []
+    avisos: list[str] = list(matriz.avisos)
     indices = resolver_selecao(matriz, selecao)
 
     # Ordem das colunas: do MENOR para o MAIOR custo no CC (senão SC). O SC usa exatamente a mesma
@@ -173,4 +178,5 @@ def calcular(matriz: Matriz, selecao: Optional[Selecao] = None, *,
                   mes_reajuste=mes_reajuste, demografia=matriz.demografia,
                   cenarios=cenarios, avisos=avisos,
                   operadora_atual=(operadora_atual or "").strip()
-                  or " ".join(x for x in (ref.blocos[0].nome, matriz.congenere) if x))
+                  or " ".join(x for i, x in enumerate((ref.blocos[0].nome, matriz.congenere))
+                              if x and not (i == 1 and x.lower() in ref.blocos[0].nome.lower())))
