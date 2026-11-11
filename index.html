@@ -363,7 +363,7 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
       <div class="cabeca">
         <div>
           <h1 id="titulo-cliente">Comparativo</h1>
-          <label class="interruptor" id="lbl-desc" hidden><input type="checkbox" id="com-desc" checked><span>Usar valores com desconto</span><small id="com-desc-nota">As operadoras marcadas com "desconto" entram com o valor já descontado da Matriz.</small></label>
+          <label class="interruptor" id="lbl-desc" hidden><input type="checkbox" id="com-desc" checked><span>Usar valores com desconto/agravo</span><small id="com-desc-nota">As operadoras marcadas com "desconto/agravo" entram com o valor já ajustado da Matriz.</small></label>
           <p class="sub">Marque as operadoras que entram na apresentação. Elas seguem do menor para o maior custo em todos os slides.</p>
         </div>
       </div>
@@ -608,7 +608,7 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
       const bloqueado = cheio && !marcado, delta = fr ? v / fr - 1 : 0, acima = delta > 0;
       html += `<button type="button" class="linha" role="checkbox" aria-checked="${marcado}" aria-disabled="${bloqueado}" data-i="${o.indice}">` +
         `<span class="caixa"></span>` +
-        `<span class="nome">${esc(o.nome)}${i === 0 ? '<span class="selo">menor custo</span>' : ""}<small>${i + 1}º no ranking${o.logo ? "" : " · sem logo cadastrado"}${o.desconto ? " · com desconto na Matriz" : ""}</small></span>` +
+        `<span class="nome">${esc(o.nome)}${i === 0 ? '<span class="selo">menor custo</span>' : ""}<small>${i + 1}º no ranking${o.logo ? "" : " · sem logo cadastrado"}${o.desconto ? " · com desconto/agravo na Matriz" : ""}</small></span>` +
         `<span class="barra"><span class="preenche${acima ? " acima" : ""}" data-w="${(v / topo) * 100}" style="width:${animar ? 0 : (v / topo) * 100}%"></span><span class="base" style="left:${posBase}%"></span></span>` +
         `<span class="valor">${v ? brl2.format(v) : "—"}</span>` +
         `<span class="delta${acima ? " acima" : ""}">${v ? sinal(delta) : ""}</span></button>`;

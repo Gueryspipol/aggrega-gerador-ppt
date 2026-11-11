@@ -152,9 +152,11 @@ def _calc_cenario(cen: CenarioMatriz, indices: list[int], nome_op, avisos: list[
         bloco = cen.blocos[idx]
         if bloco.com_desconto:
             outro = bloco.total_com(not usar_desconto)
+            ajustado, cheio = (total, outro) if usar_desconto else (outro, total)
+            palavra = "agravo" if ajustado > cheio else "desconto"
             avisos.append(f"{cen.tipo}: {nome_op(idx)} usa o valor "
-                          + (f"COM desconto da Matriz ({total:,.2f}); sem desconto seria {outro:,.2f}" if usar_desconto
-                             else f"SEM desconto ({total:,.2f}); com desconto da Matriz seria {outro:,.2f}"))
+                          + (f"COM {palavra} da Matriz ({total:,.2f}); sem {palavra} seria {outro:,.2f}" if usar_desconto
+                             else f"SEM {palavra} ({total:,.2f}); com {palavra} da Matriz seria {outro:,.2f}"))
         ops.append(OperadoraCalc(
             nome=nome_op(idx), bloco_indice=idx, total_mensal=total,
             reducao_mensal=total - referencia,

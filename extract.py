@@ -157,14 +157,18 @@ def achar_abas(wb, somente_visiveis: bool = False) -> dict[str, str]:
 # --------------------------------------------------------------------------- #
 # Leitura de um cenário
 # --------------------------------------------------------------------------- #
+_ROTULOS_AJUSTE = ("desc", "agravo", "acrescimo", "acréscimo")
+
+
 def _ler_desconto(g: _Grade, planos: list, colunas: list[int], c0: int, c_fim: int,
                   linha_total: int, limite: int) -> bool:
-    """Preenche Plano.total_desc quando a Matriz traz desconto. Dois formatos:
+    """Preenche Plano.total_desc quando a Matriz traz desconto OU agravo (Plano.total_desc é o valor
+    ajustado, menor ou maior que o cheio). Dois formatos:
     1) linha "Total c desconto" logo abaixo do "Total", com um valor por plano;
-    2) quadro final "Total / Fatura" seguido de uma linha "Desc..." (ex.: "Desc 10%") com a fatura já
-       descontada: o percentual (desc / fatura) é aplicado a cada plano."""
+    2) quadro final "Total / Fatura" seguido de uma linha "Desc..."/"Agravo..." (ex.: "Agravo 8%") com a
+       fatura já ajustada: o percentual (desc / fatura) é aplicado a cada plano."""
     for rr in range(linha_total + 1, min(linha_total + 4, limite)):
-        if norm(g(rr, c0)).startswith("total c desc"):
+        if norm(g(rr, c0)).startswith(("total c desc", "total c agr", "total c acr")):
             vals = [_num(g(rr, c + 1)) or 0.0 for c in colunas]
             if any(v > 0 for v in vals):
                 for p, v in zip(planos, vals):
@@ -178,9 +182,9 @@ def _ler_desconto(g: _Grade, planos: list, colunas: list[int], c0: int, c_fim: i
             bruto = next((v for c in range(c0 + 1, c_fim + 1) if (v := _num(g(rr, c))) and v > 0), None)
             for r2 in range(rr + 1, min(rr + 4, limite)):
                 rot2 = norm(g(r2, c0))
-                if rot2.startswith("desc") or rot2.startswith("total / fatura c desc"):
+                if rot2.startswith(_ROTULOS_AJUSTE) or rot2.startswith("total / fatura c "):
                     desc = next((v for c in range(c0 + 1, c_fim + 1) if (v := _num(g(r2, c))) and v > 0), None)
-                    if bruto and desc and 0 < desc < bruto:
+                    if bruto and desc and abs(desc - bruto) > 0.005:      # desconto (menor) ou agravo (maior)
                         fator = desc / bruto
                         for p in planos:
                             p.total_desc = p.total * fator if p.total > 0 else None

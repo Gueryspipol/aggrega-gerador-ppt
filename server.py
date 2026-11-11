@@ -38,7 +38,7 @@ from apresentador360.logos import Catalogo  # noqa: E402
 from apresentador360.pipeline import gerar, mes_do_arquivo  # noqa: E402
 import atualizar  # noqa: E402
 
-VERSAO = "web 5"
+VERSAO = "web 7"
 SENHA = os.environ.get("APP_SENHA", "")
 TEMPLATES = RAIZ / "templates"
 PASTA_TRABALHO = Path(tempfile.gettempdir()) / "apresentador360"
@@ -118,7 +118,9 @@ def pagina():
     arq = next((p for p in PAGINAS if p.exists()), None)
     if arq is None:
         return "Página não encontrada: falta o arquivo index.html no repositório.", 500
-    return send_from_directory(arq.parent, arq.name)
+    resp = send_from_directory(arq.parent, arq.name)
+    resp.headers["Cache-Control"] = "no-cache, must-revalidate"      # sempre a página da versão publicada
+    return resp
 
 
 @app.get("/static/<nome>")

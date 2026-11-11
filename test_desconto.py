@@ -68,3 +68,20 @@ def test_empresarial_escolhe_com_ou_sem_desconto():
     com = calcular(m, [idx], usar_desconto=True).cenarios["SC"].operadoras[0].total_mensal
     sem = calcular(m, [idx], usar_desconto=False).cenarios["SC"].operadoras[0].total_mensal
     assert com < sem
+
+
+@pytest.mark.skipif(PME is None, reason="amostra ausente")
+def test_pme_agravo_no_quadro_final(tmp_path):
+    """"Agravo 8%": a fatura ajustada é MAIOR que a cheia e a escolha continua valendo."""
+    wb = openpyxl.load_workbook(PME, data_only=True)
+    ws = wb["Matriz  C COPART"]
+    ws["B64"].value = "Agravo 8%"
+    ws["C64"].value = round(ws["C63"].value * 1.08, 2)
+    arq = tmp_path / "a.xlsx"
+    wb.save(arq)
+    m = carregar_matriz(arq)
+    idx = next(o["indice"] for o in listar_operadoras(m) if o["nome"] == "Bradesco")
+    com = calcular(m, [idx], usar_desconto=True).cenarios["CC"].operadoras[0]
+    sem = calcular(m, [idx], usar_desconto=False).cenarios["CC"].operadoras[0]
+    assert com.total_mensal == pytest.approx(sem.total_mensal * 1.08, rel=1e-3)
+    assert any("agravo" in a.lower() for a in calcular(m, [idx]).avisos)
