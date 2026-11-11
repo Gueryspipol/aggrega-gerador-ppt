@@ -144,9 +144,11 @@ def preencher_resumo(slide, cen: CenarioCalc, estudo: Estudo, altura_slide: int,
     def achar(col, teste):
         return [s for s in por_coluna[col] if teste(s.text_frame.text.strip())]
 
-    # colunas 0 (atual) e 1 (reajuste)
-    for col, valor, mes in ((0, cen.fatura_atual, estudo.mes_atual),
-                            (1, cen.fatura_reajustada, estudo.mes_reajuste)):
+    # colunas 0 (atual) e 1 (reajuste; sai do slide quando a apresentação é sem reajuste)
+    colunas_base = [(0, cen.fatura_atual, estudo.mes_atual)]
+    if estudo.com_reajuste:
+        colunas_base.append((1, cen.fatura_reajustada, estudo.mes_reajuste))
+    for col, valor, mes in colunas_base:
         for sh in achar(col, lambda t: bool(_RE_VALOR.match(t))):
             definir_linhas(sh, [f.brl_inteiro(valor)])
         for sh in achar(col, lambda t: t.startswith("Total de Vidas")):
@@ -156,7 +158,7 @@ def preencher_resumo(slide, cen: CenarioCalc, estudo: Estudo, altura_slide: int,
                 definir_linhas(sh, [mes[0], str(mes[1])])
             else:
                 avisos.append(f"Slide de resumo {cen.tipo}: mês/ano da coluna {col + 1} não informado; mantido o do template")
-    for sh in achar(1, lambda t: "reajuste" in t.lower()):
+    for sh in (achar(1, lambda t: "reajuste" in t.lower()) if estudo.com_reajuste else []):
         for par in sh.text_frame.paragraphs:                # "Reajuste %" ou "Reajuste 11,83%"
             txt = "".join(r.text for r in par.runs)
             if "reajuste" in txt.lower():
@@ -252,6 +254,79 @@ def preencher_financeira(slide, cen: CenarioCalc, avisos: list[str], pagina: int
 
 
 # --------------------------------------------------------------------------- #
+# Apresentação SEM reajuste: tira a parte de reajuste e reorganiza o quadro
+# --------------------------------------------------------------------------- #
+def _apagar(forma) -> None:
+    forma._element.getparent().remove(forma._element)
+
+
+def remover_reajuste_resumo(slide, altura_slide: int) -> None:
+    """Slides 14/18: apaga o cartão "Projeção de Reajuste" (com a seta/arco), fecha o espaço e
+    centraliza os cartões que sobraram."""
+    cartoes, _ = _colunas_resumo(slide, altura_slide)
+    c1, c2 = cartoes[1], cartoes[2]
+    passo = c2.left - c1.left
+    faixa_x = (cartoes[0].left - int(0.1 * IN), cartoes[-1].left + cartoes[-1].width + int(0.1 * IN))
+    em_colunas = [sh for sh in slide.shapes
+                  if 0.15 * altura_slide < sh.top < 0.92 * altura_slide
+                  and faixa_x[0] <= sh.left + sh.width / 2 <= faixa_x[1]]
+    for sh in em_colunas:
+        cx = sh.left + sh.width / 2
+        if sh.name.startswith("Arco") or c1.left <= cx <= c1.left + c1.width:
+            _apagar(sh)
+        else:
+            sh.left = int(sh.left + (passo / 2 if cx < c1.left else -passo / 2))
+
+
+def remover_reajuste_financeira(slide) -> None:
+    """Slides 15/19: apaga a coluna e a etiqueta REAJUSTE; as demais colunas dividem a largura e as
+    etiquetas, logos e linhas divisórias acompanham."""
+    forma = next(x for x in slide.shapes if x.has_table)
+    tb = forma.table
+    n = len(tb.columns)
+    if n < 4:
+        return
+    larg = [c.width for c in tb.columns]
+    esq = [forma.left + sum(larg[:i]) for i in range(n)]
+    fim = esq[-1] + larg[-1]
+    novo_w = sum(larg[1:]) // (n - 2)
+    novo_esq = [forma.left] + [forma.left + larg[0] + (k - 1) * novo_w for k in range(1, n - 1)]   # 0 = rótulos
+
+    def coluna(cx):
+        return next((k for k in range(1, n) if esq[k] <= cx < esq[k] + larg[k]), None)
+
+    acima = [sh for sh in slide.shapes
+             if sh.shape_type not in (MSO_SHAPE_TYPE.LINE, MSO_SHAPE_TYPE.TABLE)
+             and sh.top >= int(1.0 * IN) and sh.top + sh.height <= forma.top + int(0.05 * IN)
+             and esq[1] <= sh.left + sh.width / 2 < fim]
+    for sh in acima:
+        cx = sh.left + sh.width / 2
+        k = coluna(cx)
+        if k is None:
+            continue
+        if k == 2:
+            _apagar(sh)
+            continue
+        j = k if k < 2 else k - 1
+        sh.left = int(novo_esq[j] + (cx - esq[k]) / larg[k] * novo_w - sh.width / 2)
+
+    # tabela: tira a coluna 2 e reparte a largura
+    tbl = tb._tbl
+    tbl.tblGrid.remove(tbl.tblGrid.findall(qn("a:gridCol"))[2])
+    for tr in tbl.tr_lst:
+        tr.remove(tr.tc_lst[2])
+    for k in range(1, n - 1):
+        tb.columns[k].width = novo_w
+    # linhas divisórias: uma por fronteira entre colunas de valor
+    linhas = sorted((x for x in slide.shapes if x.shape_type == MSO_SHAPE_TYPE.LINE), key=lambda x: x.left)
+    for i, ln in enumerate(linhas):
+        if i >= n - 3:
+            _apagar(ln)
+        else:
+            ln.left = int(novo_esq[2 + i])
+
+
+# --------------------------------------------------------------------------- #
 # Logos das operadoras
 # --------------------------------------------------------------------------- #
 IN = 914400
@@ -292,6 +367,10 @@ def logos_resumo(slide, logos_cols: list, altura_slide: int) -> None:
 def logos_tabela_financeira(slide, logos_cols: list) -> None:
     """Slides 15/19: o logo vai entre as etiquetas (ATUAL, REAJUSTE...) e o topo de cada coluna da tabela."""
     forma = next(x for x in slide.shapes if x.has_table)
+    for velho in [x for x in slide.shapes if x.shape_type == MSO_SHAPE_TYPE.PICTURE      # logos que o molde já traz
+                  and 0.9 * IN < x.top and x.top + x.height <= forma.top + 0.05 * IN
+                  and x.width < 0.3 * slide.part.package.presentation_part.presentation.slide_width]:
+        velho._element.getparent().remove(velho._element)
     abaixo_de = [x.top + x.height for x in slide.shapes
                  if x.shape_type not in (MSO_SHAPE_TYPE.PICTURE, MSO_SHAPE_TYPE.LINE, MSO_SHAPE_TYPE.TABLE)
                  and x.top + x.height < forma.top]
@@ -510,6 +589,8 @@ def preencher_estudo(prs, estudo: Estudo, avisos: list[str], catalogo=None, com_
         preencher_resumo(s(mapa["resumo"]), cen, estudo, prs.slide_height, avisos)
         if logos_cols:
             logos_resumo(s(mapa["resumo"]), logos_cols, prs.slide_height)
+        if not estudo.com_reajuste:
+            remover_reajuste_resumo(s(mapa["resumo"]), prs.slide_height)
         original = s(mapa["financeira"])
         n_pag = paginas_financeira(original, cen)
         paginas = [original]
@@ -522,6 +603,8 @@ def preencher_estudo(prs, estudo: Estudo, avisos: list[str], catalogo=None, com_
             preencher_financeira(pg, cen, avisos, pagina=i)
             if logos_cols:
                 logos_tabela_financeira(pg, logos_cols)
+            if not estudo.com_reajuste:
+                remover_reajuste_financeira(pg)
         if not com_faixas:                     # Matriz Empresarial: sem custo por faixa etária
             remover += [s(n) for n in mapa["faixas"]]
             continue

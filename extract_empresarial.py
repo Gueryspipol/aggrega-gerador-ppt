@@ -92,7 +92,7 @@ def _ler_bloco_emp(g: _Grade, r: int, c0: int, limite: int) -> Bloco:
         desc = _num(g(l_desc, c)) if l_desc else None
         if desc and desc > 0:
             tem_desc = True
-            planos.append(Plano(nome=nome_plano, vidas=vidas, total=desc, total_bruto=bruto))
+            planos.append(Plano(nome=nome_plano, vidas=vidas, total=bruto, total_desc=desc))
         else:
             planos.append(Plano(nome=nome_plano, vidas=vidas, total=bruto))
     return Bloco(indice=0, nome=nome, linha=r, faixas=faixas, planos=planos, com_desconto=tem_desc)

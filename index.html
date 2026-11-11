@@ -78,6 +78,11 @@ button, input { font: inherit; color: inherit; }
 .tipos label:has(input:focus-visible) { outline: 3px solid var(--foco); outline-offset: -3px; }
 .tipo-nota { color: var(--suave); font-size: 14px; margin: 8px 0 22px; min-height: 1.4em; }
 
+.interruptor { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: start; padding: 12px 14px; border: 1px solid var(--linha); border-radius: 6px; background: #f8fafc; cursor: pointer; }
+.interruptor input { grid-row: 1 / span 2; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--marinho-2); }
+.interruptor span { font-weight: 600; }
+.interruptor small { color: var(--suave); font-size: 13px; line-height: 1.35; }
+
 /* ---------- atualizar sistema ---------- */
 .atualiza { max-width: 760px; }
 .versao { margin-top: 26px; background: var(--superficie); border: 1px solid var(--linha); border-radius: 6px; display: grid; grid-template-columns: auto 1fr auto; gap: 6px 22px; align-items: center; padding: 18px 22px; }
@@ -358,6 +363,7 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
       <div class="cabeca">
         <div>
           <h1 id="titulo-cliente">Comparativo</h1>
+          <label class="interruptor" id="lbl-desc" hidden><input type="checkbox" id="com-desc" checked><span>Usar valores com desconto</span><small id="com-desc-nota">As operadoras marcadas com "desconto" entram com o valor já descontado da Matriz.</small></label>
           <p class="sub">Marque as operadoras que entram na apresentação. Elas seguem do menor para o maior custo em todos os slides.</p>
         </div>
       </div>
@@ -379,9 +385,10 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
           <label>Cliente<input id="cliente" type="text" autocomplete="off"></label>
           <label>Operadora atual<input id="op-atual" type="text" placeholder="ex.: Bradesco e Amil" autocomplete="off"></label>
           <p class="nota" id="nota-logo-atual" style="margin:-8px 0 0" hidden>Não achei o logo da operadora atual. Digite o nome dela para o robô escolher o logo.</p>
+          <label class="interruptor"><input type="checkbox" id="com-reaj" checked><span>Apresentar com reajuste</span><small id="com-reaj-nota">Mostra o cartão e a coluna de reajuste e compara as operadoras com a fatura reajustada.</small></label>
           <div class="duas">
             <label>Mês atual<input id="mes-atual" type="text" placeholder="JUN/2026" autocomplete="off"></label>
-            <label>Mês do reajuste<input id="mes-reaj" type="text" placeholder="SET/2026" autocomplete="off"></label>
+            <label id="lbl-mes-reaj">Mês do reajuste<input id="mes-reaj" type="text" placeholder="SET/2026" autocomplete="off"></label>
           </div>
           <div>
             <div class="contagem" style="margin-bottom:6px">Ordem nos slides</div>
@@ -417,6 +424,10 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
 
   const estado = { dados: null, cenario: "CC", sel: [], max: 4, gerando: false, gerada: false };
 
+  const comReaj = () => $("com-reaj").checked;
+  const comDesc = () => $("com-desc").checked;
+  const valor = (o, t) => (comDesc() && o.desconto && o[t + "_desc"]) ? o[t + "_desc"] : (o[t] || 0);
+
   /* Etapas da barra lateral: acompanham o andamento real do trabalho. */
   function etapas() {
     const d = estado.dados, n = estado.sel.length;
@@ -424,7 +435,7 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
     if (d) {
       if (!$("cliente").value.trim()) falta.push("o cliente");
       if (!$("mes-atual").value.trim()) falta.push("o mês atual");
-      if (!$("mes-reaj").value.trim()) falta.push("o mês do reajuste");
+      if (comReaj() && !$("mes-reaj").value.trim()) falta.push("o mês do reajuste");
     }
     const feita = [!!d, false, false, false];
     feita[1] = feita[0] && n > 0;
@@ -451,7 +462,7 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
     const ir = () => {
       if (!estado.dados || $("tela-comparar").hidden) return;
       $(alvos[k]).scrollIntoView({ behavior: "smooth", block: "center" });
-      if (k === 3) $(!$("cliente").value.trim() ? "cliente" : !$("mes-atual").value.trim() ? "mes-atual" : "mes-reaj").focus({ preventScroll: true });
+      if (k === 3) $(!$("cliente").value.trim() ? "cliente" : !$("mes-atual").value.trim() ? "mes-atual" : comReaj() ? "mes-reaj" : "mes-atual").focus({ preventScroll: true });
     };
     const el = $("fase-" + k);
     el.addEventListener("click", ir);
@@ -508,6 +519,22 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
   }));
   $("tipo-nota").textContent = NOTAS[tipoAtual()];
 
+  $("com-desc").addEventListener("change", () => {
+    $("pronto").hidden = true; estado.gerada = false;
+    if (estado.dados) { desenhar(false); atualizarPainel(); }
+  });
+
+  $("com-reaj").addEventListener("change", () => {
+    const on = comReaj();
+    $("lbl-mes-reaj").hidden = !on;
+    $("com-reaj-nota").textContent = on
+      ? "Mostra o cartão e a coluna de reajuste e compara as operadoras com a fatura reajustada."
+      : "Tira o cartão e a coluna de reajuste dos slides e compara as operadoras com a fatura atual.";
+    const r = $("resumo-reaj"); if (r) r.hidden = !on;
+    $("pronto").hidden = true; estado.gerada = false;
+    if (estado.dados) { desenhar(false); atualizarPainel(); }
+  });
+
   async function enviar(arq) {
     $("alerta-leitura").hidden = true;
     $("lendo").hidden = false;
@@ -538,7 +565,7 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
   /* ---------------- comparação ---------------- */
   function ordenadas() {
     const d = estado.dados, ref = d.cenarios.includes("CC") ? "CC" : d.cenarios[0];
-    return [...d.operadoras].sort((a, b) => (a[ref] || Infinity) - (b[ref] || Infinity) || a.indice - b.indice);
+    return [...d.operadoras].sort((a, b) => (valor(a, ref) || Infinity) - (valor(b, ref) || Infinity) || a.indice - b.indice);
   }
 
   function abrirComparacao(d) {
@@ -548,10 +575,12 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
     $("op-atual").value = d.logo_atual ? d.operadora_atual : "";
     $("nota-logo-atual").hidden = !!d.logo_atual;
     $("cliente").value = d.cliente || ""; $("mes-atual").value = d.mes_atual || ""; $("mes-reaj").value = "";
+    $("com-reaj").checked = true; $("lbl-mes-reaj").hidden = false;
+    $("com-desc").checked = true; $("lbl-desc").hidden = !d.tem_desconto;
     $("resumo").innerHTML =
       `<div><dt>Vidas</dt><dd>${d.vidas}</dd></div>` +
       `<div><dt>Fatura atual</dt><dd>${brl0.format(d.fatura_atual)}</dd></div>` +
-      `<div><dt>Fatura reajustada</dt><dd>${brl0.format(d.fatura_reajustada)}<small>${sinal(d.reajuste_pct).replace("−", "+")}</small></dd></div>`;
+      `<div id="resumo-reaj"${comReaj() ? "" : " hidden"}><dt>Fatura reajustada</dt><dd>${brl0.format(d.fatura_reajustada)}<small>${sinal(d.reajuste_pct).replace("−", "+")}</small></dd></div>`;
     $("cenarios").innerHTML = d.cenarios.map((t) =>
       `<button type="button" data-t="${t}" aria-pressed="${t === estado.cenario}">${t === "CC" ? "Com coparticipação" : t === "SC" ? "Sem coparticipação" : t}</button>`).join("");
     $("cenarios").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
@@ -566,20 +595,20 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
   }
 
   function desenhar(animar) {
-    const d = estado.dados, t = estado.cenario, fr = d.fatura_reajustada;
+    const d = estado.dados, t = estado.cenario, fr = comReaj() ? d.fatura_reajustada : d.fatura_atual;
     const lista = ordenadas();
-    const topo = Math.max(fr, ...lista.map((o) => o[t] || 0)) * 1.06;
+    const topo = Math.max(fr, ...lista.map((o) => valor(o, t))) * 1.06;
     const posBase = (fr / topo) * 100;
     const cheio = estado.sel.length >= estado.max;
     let html = `<div class="legenda"><span></span><span>Operadora</span>` +
-      `<div class="ref"><span style="left:${posBase}%">Fatura reajustada ${brl0.format(fr)}</span></div>` +
+      `<div class="ref"><span style="left:${posBase}%">${comReaj() ? "Fatura reajustada" : "Fatura atual"} ${brl0.format(fr)}</span></div>` +
       `<span class="d">Total mensal</span><span class="d">Variação</span></div>`;
     lista.forEach((o, i) => {
-      const v = o[t] || 0, marcado = estado.sel.includes(o.indice);
+      const v = valor(o, t), marcado = estado.sel.includes(o.indice);
       const bloqueado = cheio && !marcado, delta = fr ? v / fr - 1 : 0, acima = delta > 0;
       html += `<button type="button" class="linha" role="checkbox" aria-checked="${marcado}" aria-disabled="${bloqueado}" data-i="${o.indice}">` +
         `<span class="caixa"></span>` +
-        `<span class="nome">${esc(o.nome)}${i === 0 ? '<span class="selo">menor custo</span>' : ""}<small>${i + 1}º no ranking${o.logo ? "" : " · sem logo cadastrado"}</small></span>` +
+        `<span class="nome">${esc(o.nome)}${i === 0 ? '<span class="selo">menor custo</span>' : ""}<small>${i + 1}º no ranking${o.logo ? "" : " · sem logo cadastrado"}${o.desconto ? " · com desconto na Matriz" : ""}</small></span>` +
         `<span class="barra"><span class="preenche${acima ? " acima" : ""}" data-w="${(v / topo) * 100}" style="width:${animar ? 0 : (v / topo) * 100}%"></span><span class="base" style="left:${posBase}%"></span></span>` +
         `<span class="valor">${v ? brl2.format(v) : "—"}</span>` +
         `<span class="delta${acima ? " acima" : ""}">${v ? sinal(delta) : ""}</span></button>`;
@@ -590,7 +619,7 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
     $("escada").querySelectorAll(".linha").forEach((b) => b.addEventListener("click", () => alternar(+b.dataset.i)));
     $("nota").textContent = t === "SC"
       ? "No sem coparticipação a ordem continua a do com coparticipação, mesmo que alguma operadora fique mais cara fora de ordem."
-      : "A linha amarela marca a fatura reajustada. Barras verdes ficam abaixo dela; barras laranja, acima.";
+      : `A linha amarela marca a fatura ${comReaj() ? "reajustada" : "atual"}. Barras verdes ficam abaixo dela; barras laranja, acima.`;
   }
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -623,7 +652,8 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token: estado.dados.token, operadoras: estado.sel, cliente: $("cliente").value,
-          mes_atual: $("mes-atual").value, mes_reajuste: $("mes-reaj").value,
+          mes_atual: $("mes-atual").value, mes_reajuste: comReaj() ? $("mes-reaj").value : "", com_reajuste: comReaj(),
+          com_desconto: comDesc(),
           operadora_atual: $("op-atual").value,
         }),
       });
@@ -645,7 +675,9 @@ th { font-weight: 500; color: var(--suave); background: #f6f8fb; }
     $("tabelas").innerHTML = Object.entries(r.cenarios).map(([t, c]) =>
       `<table><caption>${nomes[t] || t}</caption>` +
       `<thead><tr><th>Operadora</th><th>Total mensal</th><th>Variação</th></tr></thead><tbody>` +
-      `<tr><td>Fatura reajustada (${pct(c.reajuste_pct, 2)})</td><td>${brl2.format(c.fatura_reajustada)}</td><td></td></tr>` +
+      (r.com_reajuste === false
+        ? `<tr><td>Fatura atual</td><td>${brl2.format(c.fatura_atual)}</td><td></td></tr>`
+        : `<tr><td>Fatura reajustada (${pct(c.reajuste_pct, 2)})</td><td>${brl2.format(c.fatura_reajustada)}</td><td></td></tr>`) +
       c.operadoras.map((o) => `<tr><td>${esc(o.nome)}</td><td>${brl2.format(o.total)}</td><td>${sinal(o.reducao_pct)}</td></tr>`).join("") +
       `</tbody></table>`).join("");
     const av = r.avisos || [];

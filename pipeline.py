@@ -58,13 +58,15 @@ def gerar(matriz: str | Path, template: str | Path, saida: str | Path, *,
           mes_reajuste: Optional[str] = None,
           operadora_atual: Optional[str] = None,
           logos: Optional[str | Path] = None,
-          tipo: str = "pme") -> Resultado:
+          tipo: str = "pme",
+          com_reajuste: bool = True, com_desconto: bool = True) -> Resultado:
     """tipo: "pme" ou "empresarial" (esta não tem custo por faixa etária: esses slides são removidos)."""
     m = carregar_matriz(matriz, cliente=cliente, tipo=tipo)
     prs = Presentation(str(template))               # o template original nunca é alterado
     estudo = calcular(m, operadoras, cliente=cliente,
                       mes_atual=parse_mes(mes_atual) or mes_do_arquivo(matriz),
-                      mes_reajuste=parse_mes(mes_reajuste), operadora_atual=operadora_atual)
+                      mes_reajuste=parse_mes(mes_reajuste), operadora_atual=operadora_atual,
+                      com_reajuste=com_reajuste, usar_desconto=com_desconto)
     avisos = list(estudo.avisos)
 
     remover = preencher_estudo(prs, estudo, avisos, Catalogo(logos), com_faixas=(tipo != "empresarial"))

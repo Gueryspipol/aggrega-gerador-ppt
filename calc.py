@@ -3,7 +3,7 @@
 Regras (conferidas contra as abas 'Análise Financeira' e 'Impacto Financeiro'):
 - reajustado = custo médio atual * (1 + reajuste)
 - total do plano = custo médio * nº de vidas do plano ATUAL
-- impacto mensal = total da operadora - fatura reajustada
+- impacto mensal = total da operadora - fatura reajustada (ou fatura ATUAL quando a apresentação é sem reajuste)
 - impacto %     = total da operadora / fatura reajustada - 1
 - ordem das operadoras: do menor para o maior custo no CC; o SC segue a MESMA ordem, mesmo que no SC
   a classificação mude.
@@ -32,9 +32,13 @@ def listar_operadoras(matriz: Matriz) -> list[dict]:
     n = max(len(c.blocos) for c in matriz.cenarios.values())
     saida = []
     for i in range(1, n):
-        item = {"indice": i, "nome": _nome_operadora(matriz, i)}
+        item = {"indice": i, "nome": _nome_operadora(matriz, i), "desconto": False}
         for tipo, cen in matriz.cenarios.items():
-            item[tipo] = cen.blocos[i].total_mensal if i < len(cen.blocos) else 0.0
+            ok = i < len(cen.blocos)
+            item[tipo] = cen.blocos[i].total_mensal if ok else 0.0
+            item[tipo + "_desc"] = cen.blocos[i].total_com(True) if ok else 0.0
+            if ok and cen.blocos[i].com_desconto:
+                item["desconto"] = True
         saida.append(item)
     return saida
 
@@ -84,7 +88,8 @@ def _separar_reajuste(ativos: list) -> tuple[list, Optional[list]]:
     return ativos, None
 
 
-def _calc_cenario(cen: CenarioMatriz, indices: list[int], nome_op, avisos: list[str]) -> CenarioCalc:
+def _calc_cenario(cen: CenarioMatriz, indices: list[int], nome_op, avisos: list[str],
+                  com_reajuste: bool = True, usar_desconto: bool = True) -> CenarioCalc:
     base = cen.blocos[0]
     ativos = [p for p in base.planos if p.vidas > 0]
     if not ativos:
@@ -125,26 +130,35 @@ def _calc_cenario(cen: CenarioMatriz, indices: list[int], nome_op, avisos: list[
                                  total=p.total, custo_medio_reaj=cm_r, total_reaj=cm_r * p.vidas))
     fatura_reaj = sum(a.total_reaj for a in atuais)
 
+    referencia = fatura_reaj if com_reajuste else fatura_atual     # base das comparações
     ops = []
     for idx in indices:
         if idx >= len(cen.blocos):
             avisos.append(f"{cen.tipo}: operadora {idx} ausente na aba")
             continue
-        planos = [PlanoOperadora(nome=p.nome or f"Plano {k + 1}", vidas=p.vidas, custo_medio=p.custo_medio,
-                                 total=p.total, por_faixa=p.por_faixa)
-                  for k, p in enumerate(cen.blocos[idx].planos) if p.vidas > 0]
+        planos = []
+        for k, p in enumerate(cen.blocos[idx].planos):
+            if p.vidas <= 0:
+                continue
+            desc = usar_desconto and bool(p.total_desc) and p.total > 0
+            total_p = p.total_desc if desc else p.total
+            fator = total_p / p.total if desc else 1.0           # per capita por faixa acompanha o desconto
+            planos.append(PlanoOperadora(
+                nome=p.nome or f"Plano {k + 1}", vidas=p.vidas, custo_medio=total_p / p.vidas, total=total_p,
+                por_faixa=[(v * fator if v is not None else None) for v in p.por_faixa]))
         if not planos:
             avisos.append(f"{cen.tipo}: {nome_op(idx)} sem nenhum plano com valores")
         total = sum(p.total for p in planos)
         bloco = cen.blocos[idx]
         if bloco.com_desconto:
-            bruto = sum(p.total_bruto if p.total_bruto is not None else p.total for p in bloco.planos if p.vidas > 0)
-            avisos.append(f"{cen.tipo}: {nome_op(idx)} usa o valor COM desconto/diluição da fatura "
-                          f"({total:,.2f}); sem desconto seria {bruto:,.2f}")
+            outro = bloco.total_com(not usar_desconto)
+            avisos.append(f"{cen.tipo}: {nome_op(idx)} usa o valor "
+                          + (f"COM desconto da Matriz ({total:,.2f}); sem desconto seria {outro:,.2f}" if usar_desconto
+                             else f"SEM desconto ({total:,.2f}); com desconto da Matriz seria {outro:,.2f}"))
         ops.append(OperadoraCalc(
             nome=nome_op(idx), bloco_indice=idx, total_mensal=total,
-            reducao_mensal=total - fatura_reaj,
-            reducao_pct=(total / fatura_reaj - 1) if fatura_reaj else 0.0,
+            reducao_mensal=total - referencia,
+            reducao_pct=(total / referencia - 1) if referencia else 0.0,
             planos=planos))
 
     return CenarioCalc(tipo=cen.tipo, reajuste_pct=reaj, fatura_atual=fatura_atual,
@@ -156,27 +170,28 @@ def calcular(matriz: Matriz, selecao: Optional[Selecao] = None, *,
              cliente: Optional[str] = None,
              mes_atual: Optional[tuple[str, int]] = None,
              mes_reajuste: Optional[tuple[str, int]] = None,
-             operadora_atual: Optional[str] = None) -> Estudo:
+             operadora_atual: Optional[str] = None,
+             com_reajuste: bool = True, usar_desconto: bool = True) -> Estudo:
     avisos: list[str] = list(matriz.avisos)
     indices = resolver_selecao(matriz, selecao)
 
     # Ordem das colunas: do MENOR para o MAIOR custo no CC (senão SC). O SC usa exatamente a mesma
     # ordem, mesmo que lá o ranking mude.
     ref = matriz.cenarios.get("CC") or matriz.cenarios["SC"]
-    indices.sort(key=lambda i: (ref.blocos[i].total_mensal if i < len(ref.blocos) else float("inf"), i))
+    indices.sort(key=lambda i: (ref.blocos[i].total_com(usar_desconto) if i < len(ref.blocos) else float("inf"), i))
 
     nome_op = lambda i: _nome_operadora(matriz, i)  # noqa: E731
     cenarios = {}
     for tipo, cen in matriz.cenarios.items():
         if len(cen.blocos) != len(ref.blocos):
             avisos.append(f"{tipo}: número de blocos ({len(cen.blocos)}) difere do cenário de referência ({len(ref.blocos)})")
-        cenarios[tipo] = _calc_cenario(cen, indices, nome_op, avisos)
+        cenarios[tipo] = _calc_cenario(cen, indices, nome_op, avisos, com_reajuste, usar_desconto)
 
     if "SC" not in cenarios:
         avisos.append("Matriz sem aba SC: apenas o cenário CC será preenchido")
     return Estudo(cliente=cliente or matriz.cliente or "", mes_atual=mes_atual,
                   mes_reajuste=mes_reajuste, demografia=matriz.demografia,
-                  cenarios=cenarios, avisos=avisos,
+                  cenarios=cenarios, avisos=avisos, com_reajuste=com_reajuste, com_desconto=usar_desconto,
                   operadora_atual=(operadora_atual or "").strip()
                   or " ".join(x for i, x in enumerate((ref.blocos[0].nome, matriz.congenere))
                               if x and not (i == 1 and x.lower() in ref.blocos[0].nome.lower())))

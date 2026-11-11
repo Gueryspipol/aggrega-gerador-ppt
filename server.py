@@ -38,7 +38,7 @@ from apresentador360.logos import Catalogo  # noqa: E402
 from apresentador360.pipeline import gerar, mes_do_arquivo  # noqa: E402
 import atualizar  # noqa: E402
 
-VERSAO = "web 2"
+VERSAO = "web 5"
 SENHA = os.environ.get("APP_SENHA", "")
 TEMPLATES = RAIZ / "templates"
 PASTA_TRABALHO = Path(tempfile.gettempdir()) / "apresentador360"
@@ -261,7 +261,10 @@ def ler():
         "logos_cadastrados": len(catalogo.itens),
         "operadoras": [{"indice": o["indice"], "nome": o["nome"] or "(sem nome)",
                         "logo": catalogo.achar(o["nome"] or "") is not None,
-                        **{t: o.get(t, 0.0) for t in matriz.cenarios}} for o in ops],
+                        "desconto": bool(o.get("desconto")),
+                        **{t: o.get(t, 0.0) for t in matriz.cenarios},
+                        **{t + "_desc": o.get(t + "_desc", 0.0) for t in matriz.cenarios}} for o in ops],
+        "tem_desconto": any(o.get("desconto") for o in ops),
         "diagnostico": diagnosticar(caminho),
     })
 
@@ -291,11 +294,13 @@ def gerar_apresentacao():
         r = gerar(origem, tpl, saida, operadoras=[int(i) for i in escolha], cliente=cliente or None,
                   mes_atual=(dados.get("mes_atual") or None), mes_reajuste=(dados.get("mes_reajuste") or None),
                   operadora_atual=(dados.get("operadora_atual") or None),
-                  tipo=tipo)
+                  tipo=tipo, com_reajuste=bool(dados.get("com_reajuste", True)),
+                  com_desconto=bool(dados.get("com_desconto", True)))
     except Exception as e:  # noqa: BLE001
         return _erro(f"Não foi possível gerar: {e}", 422)
     return jsonify({
         "arquivo": saida.name, "avisos": r.avisos,
+        "com_reajuste": r.estudo.com_reajuste, "com_desconto": r.estudo.com_desconto,
         "cenarios": {t: _cenario_json(c) for t, c in r.estudo.cenarios.items()},
         "download": f"/api/baixar/{pasta.name}/{saida.name}",
     })

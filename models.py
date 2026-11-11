@@ -14,7 +14,7 @@ class Plano:
     vidas: int
     total: float                   # soma mensal do plano (linha "Total")
     por_faixa: list[Optional[float]] = field(default_factory=list)  # per capita, uma por faixa
-    total_bruto: Optional[float] = None   # Empresarial: total ANTES do desconto (quando há desconto)
+    total_desc: Optional[float] = None    # total COM desconto da Matriz (quando existe); `total` é sempre o valor cheio
 
     @property
     def custo_medio(self) -> float:
@@ -29,11 +29,15 @@ class Bloco:
     linha: int
     faixas: list[str]
     planos: list[Plano]
-    com_desconto: bool = False     # Empresarial: o total já considera desconto/diluição da fatura
+    com_desconto: bool = False     # a Matriz traz valor com desconto/diluição para este bloco (Plano.total_desc)
 
     @property
     def total_mensal(self) -> float:
         return sum(p.total for p in self.planos if p.vidas > 0)
+
+    def total_com(self, usar_desconto: bool) -> float:
+        """Total mensal do bloco, com ou sem o desconto da Matriz (blocos sem desconto não mudam)."""
+        return sum((p.total_desc if usar_desconto and p.total_desc else p.total) for p in self.planos if p.vidas > 0)
 
     @property
     def vazio(self) -> bool:
@@ -121,3 +125,5 @@ class Estudo:
     cenarios: dict[str, CenarioCalc]
     avisos: list[str] = field(default_factory=list)
     operadora_atual: str = ""                    # texto usado para achar o(s) logo(s) da situação atual
+    com_reajuste: bool = True
+    com_desconto: bool = True      # operadoras com desconto na Matriz entram com o valor descontado                    # False: apresentação sem as partes de reajuste; comparações contra a fatura ATUAL

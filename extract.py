@@ -157,6 +157,38 @@ def achar_abas(wb, somente_visiveis: bool = False) -> dict[str, str]:
 # --------------------------------------------------------------------------- #
 # Leitura de um cenário
 # --------------------------------------------------------------------------- #
+def _ler_desconto(g: _Grade, planos: list, colunas: list[int], c0: int, c_fim: int,
+                  linha_total: int, limite: int) -> bool:
+    """Preenche Plano.total_desc quando a Matriz traz desconto. Dois formatos:
+    1) linha "Total c desconto" logo abaixo do "Total", com um valor por plano;
+    2) quadro final "Total / Fatura" seguido de uma linha "Desc..." (ex.: "Desc 10%") com a fatura já
+       descontada: o percentual (desc / fatura) é aplicado a cada plano."""
+    for rr in range(linha_total + 1, min(linha_total + 4, limite)):
+        if norm(g(rr, c0)).startswith("total c desc"):
+            vals = [_num(g(rr, c + 1)) or 0.0 for c in colunas]
+            if any(v > 0 for v in vals):
+                for p, v in zip(planos, vals):
+                    p.total_desc = v if v > 0 else None
+                return True
+    for rr in range(linha_total + 1, limite):
+        rot = norm(g(rr, c0))
+        if rot.startswith("operadora"):                  # já é o próximo bloco
+            break
+        if rot.startswith("total / fatura") and "desc" not in rot:
+            bruto = next((v for c in range(c0 + 1, c_fim + 1) if (v := _num(g(rr, c))) and v > 0), None)
+            for r2 in range(rr + 1, min(rr + 4, limite)):
+                rot2 = norm(g(r2, c0))
+                if rot2.startswith("desc") or rot2.startswith("total / fatura c desc"):
+                    desc = next((v for c in range(c0 + 1, c_fim + 1) if (v := _num(g(r2, c))) and v > 0), None)
+                    if bruto and desc and 0 < desc < bruto:
+                        fator = desc / bruto
+                        for p in planos:
+                            p.total_desc = p.total * fator if p.total > 0 else None
+                        return True
+            break
+    return False
+
+
 def _ler_bloco(g: _Grade, indice: int, r: int, c0: int, limite: int) -> Bloco:
     # região do bloco: vai até outra célula "OPERADORA" na mesma linha (espelho à direita)
     c_fim = next((c for c in range(c0 + 1, g.ncols + 1) if _RE_OPERADORA.match(norm(g(r, c)))),
@@ -206,7 +238,8 @@ def _ler_bloco(g: _Grade, indice: int, r: int, c0: int, limite: int) -> Bloco:
             total=_num(g(linha_total, c + 1)) or 0.0,
             por_faixa=[_num(g(primeira + k, c + 1)) for k in range(len(faixas))],
         ))
-    return Bloco(indice=indice, nome=nome, linha=r, faixas=faixas, planos=planos)
+    tem_desc = _ler_desconto(g, planos, colunas, c0, c_fim, linha_total, limite)
+    return Bloco(indice=indice, nome=nome, linha=r, faixas=faixas, planos=planos, com_desconto=tem_desc)
 
 
 def ler_cenario(ws, tipo: str) -> CenarioMatriz:
