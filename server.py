@@ -38,7 +38,7 @@ from apresentador360.logos import Catalogo  # noqa: E402
 from apresentador360.pipeline import gerar, mes_do_arquivo  # noqa: E402
 import atualizar  # noqa: E402
 
-VERSAO = "web 7"
+VERSAO = "web 8"
 SENHA = os.environ.get("APP_SENHA", "")
 TEMPLATES = RAIZ / "templates"
 PASTA_TRABALHO = Path(tempfile.gettempdir()) / "apresentador360"

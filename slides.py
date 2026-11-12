@@ -200,13 +200,33 @@ def _modelo_celula(tabela, k: int, c: int):
     return None
 
 
+_ROMANOS = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"}
+
+
+def formatar_nome_plano(nome: str) -> str:
+    """Nome TODO em maiúsculas vira "Só a primeira letra maiúscula" (NACIONAL PLUS → Nacional plus).
+    Códigos com número (P420, S1500, M.01) e algarismos romanos (III) ficam como estão. Nome que já
+    vem com minúsculas na Matriz não é alterado."""
+    nome = (nome or "").strip()
+    if not nome or nome != nome.upper() or nome == nome.lower():
+        return nome
+    saida = []
+    for i, t in enumerate(nome.split()):
+        if any(ch.isdigit() for ch in t) or t in _ROMANOS or (len(t) == 1 and i > 0):
+            saida.append(t)
+        else:
+            saida.append(t.lower())
+    saida[0] = saida[0][:1].upper() + saida[0][1:] if not any(ch.isdigit() for ch in saida[0]) else saida[0]
+    return " ".join(saida)
+
+
 def _colunas_financeira(cen: CenarioCalc, n_ops_cols: int) -> dict[int, list[tuple]]:
     colunas: dict[int, list[tuple]] = {
-        1: [(a.nome, a.vidas, a.custo_medio, a.total) for a in cen.planos_atuais],
-        2: [(a.nome, a.vidas, a.custo_medio_reaj, a.total_reaj) for a in cen.planos_atuais],
+        1: [(formatar_nome_plano(a.nome), a.vidas, a.custo_medio, a.total) for a in cen.planos_atuais],
+        2: [(formatar_nome_plano(a.nome), a.vidas, a.custo_medio_reaj, a.total_reaj) for a in cen.planos_atuais],
     }
     for j, op in enumerate(cen.operadoras[:n_ops_cols]):
-        colunas[3 + j] = [(p.nome, p.vidas, p.custo_medio, p.total) for p in op.planos]
+        colunas[3 + j] = [(formatar_nome_plano(p.nome), p.vidas, p.custo_medio, p.total) for p in op.planos]
     return colunas
 
 
@@ -251,6 +271,9 @@ def preencher_financeira(slide, cen: CenarioCalc, avisos: list[str], pagina: int
                     valores[c] = [nome, str(vidas), f.brl_centavos(custo_medio), f.brl_centavos(total)][k]
             for c in range(n_cols):
                 definir_celula(tabela.cell(5 * g + k, c), valores[c], _modelo_celula(tabela, k, c))
+                if k == 0 and c > 0 and valores[c]:                  # nome do plano sempre em negrito
+                    for run in tabela.cell(5 * g + k, c).text_frame.paragraphs[0].runs:
+                        run.font.bold = True
 
 
 # --------------------------------------------------------------------------- #
